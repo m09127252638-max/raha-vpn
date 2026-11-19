@@ -35,7 +35,7 @@ class RahaVpnService : VpnService() {
 
     private var startJob: Job? = null
     private var tunDescriptor: ParcelFileDescriptor? = null
-    private var foregroundActive = false
+    @Volatile private var foregroundActive = false
 
     override fun onCreate() {
         super.onCreate()
@@ -45,15 +45,16 @@ class RahaVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
+                enterForeground("در حال آماده‌سازی تونل امن…")
                 val rawConfig = intent.getStringExtra(EXTRA_CONFIG)
                 val bridge = intent.getStringExtra(EXTRA_BRIDGE)
                 if (rawConfig.isNullOrBlank() && bridge.isNullOrBlank()) {
                     publishStatus(STATUS_FAILED, "کانفیگ یا پل انتخاب‌شده خالی است.")
+                    leaveForeground()
                     stopSelf(startId)
                     return START_NOT_STICKY
                 }
 
-                enterForeground("در حال آماده‌سازی تونل امن…")
                 startJob?.cancel()
                 startJob = scope.launch {
                     lifecycleMutex.withLock {
@@ -160,13 +161,12 @@ class RahaVpnService : VpnService() {
         kotlinx.coroutines.withContext(Dispatchers.IO) {
             val candidates = InetAddress.getAllByName(host)
                 .filterNot {
-                    it.isAnyLocalAddress || it.isLoopbackAddress ||
-                        it.isLinkLocalAddress || it.isMulticastAddress
+                    it.isAnyLocalAddress || it.isLinkLocalAddress || it.isMulticastAddress
                 }
             val selected = candidates.firstOrNull { it is Inet4Address }
                 ?: candidates.firstOrNull()
                 ?: throw IllegalStateException("سرور به یک نشانی IP قابل‌دسترسی تبدیل نشد.")
-            selected.hostAddress.substringBefore('%')
+            selected.hostAddress?.substringBefore('%') ?: throw IllegalStateException("نشانی IP سرور معتبر نیست.")
         }
 
     private suspend fun cleanupResources() {
