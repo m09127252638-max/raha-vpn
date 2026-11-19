@@ -122,7 +122,7 @@ fun RahaApp() {
                         Text("افزودن کانفیگ", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text("متن کانفیگ‌های پشتیبانی‌شده را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
-                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vmess:// یا vless:// یا trojan://") }, minLines = 4)
+                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless:// یا vmess:// یا trojan:// یا hysteria2://") }, minLines = 4)
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
                             val raw = configText.trim()
