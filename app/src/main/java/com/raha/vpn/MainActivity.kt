@@ -158,8 +158,8 @@ private fun RowScope.TabButton(label: String, active: Boolean, onClick: () -> Un
 
 private fun serverFromConfig(raw: String, index: Int): Server {
     val protocol = raw.substringBefore("://", "").lowercase()
-    val endpoint = Regex("@([^@:/?#]+):\\\\d+").find(raw)?.groupValues?.get(1)
-        ?: Regex("^([a-zA-Z0-9.-]+):\\\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
+    val endpoint = Regex("@([^@:/?#]+):\\d+").find(raw)?.groupValues?.get(1)
+        ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
         ?: "آدرس مخفی"
     return Server("سرور " + (index + 1), endpoint, protocol, raw)
 }
