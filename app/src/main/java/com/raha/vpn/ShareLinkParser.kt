@@ -47,6 +47,9 @@ object ShareLinkParser {
         require(security.isBlank() || security in setOf("none", "tls", "reality")) {
             "روش امنیتی این لینک پشتیبانی نمی‌شود"
         }
+        require(!(scheme == "trojan" && security == "none")) {
+            "پروتکل Trojan بدون TLS قابل استفاده نیست"
+        }
         require(security != "reality" || scheme == "vless") {
             "Reality فقط برای لینک VLESS پشتیبانی می‌شود"
         }
@@ -97,7 +100,7 @@ object ShareLinkParser {
         val tun = JSONObject()
             .put("type", "tun")
             .put("tag", "tun-in")
-            .put("interface_name", "atena0")
+            .put("interface_name", "hmag0")
             .put("inet4_address", JSONArray().put("172.19.0.1/30"))
             .put("mtu", 1400)
             .put("auto_route", true)
