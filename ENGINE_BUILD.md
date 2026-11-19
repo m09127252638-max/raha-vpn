@@ -19,3 +19,5 @@ bash scripts/build-libbox-android.sh
 ```
 
 The script writes the generated file to `app/libs/libbox.aar`. It verifies the upstream source commit and prints the AAR SHA-256. The current CI job runs this build as a toolchain verification step; the app does not yet start a full-device VPN until the Android `VpnService` lifecycle and libbox platform adapter are integrated and tested.
+
+CI uses `android-actions/setup-android@v3` with only `platform-tools` requested, then installs the pinned SDK platform and NDK directly. This avoids Google's removed legacy `tools` SDK package.
