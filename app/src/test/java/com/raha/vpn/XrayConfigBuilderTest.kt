@@ -81,7 +81,7 @@ class XrayConfigBuilderTest {
         try {
             XrayConfigBuilder.build("trojan://secret@edge.example:70000")
             throw AssertionError("Invalid port should not be accepted")
-        } catch (_: IllegalArgumentException) {
+        } catch (_: IllegalStateException) {
             // Expected.
         }
     }
