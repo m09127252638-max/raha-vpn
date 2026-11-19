@@ -39,7 +39,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("com.github.singbox-android:libbox:1.14.0")
     implementation("com.netzarchitekten:IPtProxy:5.7.0")
-    implementation("info.guardianproject:tor-android:0.4.9.17")
+    implementation("info.guardianproject:tor-android:0.4.9.13.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
