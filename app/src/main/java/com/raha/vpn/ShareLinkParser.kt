@@ -20,7 +20,7 @@ object ShareLinkParser {
         }
         val host = uri.host?.takeIf { it.isNotBlank() } ?: error("آدرس سرور در لینک پیدا نشد")
         val port = uri.port.takeIf { it in 1..65535 } ?: error("پورت سرور معتبر نیست")
-        val userInfo = uri.encodedUserInfo?.takeIf { it.isNotBlank() } ?: error("شناسه یا رمز سرور وجود ندارد")
+        val userInfo = uri.encodedAuthority?.substringBeforeLast('@')?.takeIf { it.isNotBlank() } ?: error("شناسه یا رمز سرور وجود ندارد")
         val query = parseQuery(uri.encodedQuery.orEmpty())
         val tag = "proxy"
 
