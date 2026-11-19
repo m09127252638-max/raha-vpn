@@ -125,22 +125,23 @@ fun RahaApp() {
                         OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless:// یا vmess:// یا trojan:// یا hysteria2://") }, minLines = 4)
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
-                            val raw = configText.trim()
-                            val protocol = raw.substringBefore("://", "").lowercase()
-                            if (ConfigStore.isSupported(raw)) {
+                            val entries = configText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+                            val valid = entries.filter { ConfigStore.isSupported(it) }
+                            if (valid.isNotEmpty()) {
                                 runCatching {
-                                    configStore.add(raw)
-                                    val item = serverFromConfig(raw, servers.size)
-                                    servers = servers + item
-                                    selectedServer = item
+                                    valid.forEach { configStore.add(it) }
+                                    servers = configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) }
+                                    selectedServer = servers.firstOrNull()
                                     configText = ""
-                                    message = "کانفیگ به‌صورت رمزگذاری‌شده ذخیره شد."
+                                    message = valid.size.toString() + " کانفیگ به‌صورت رمزگذاری‌شده ذخیره شد."
                                     selectedTab = 0
                                 }.onFailure {
                                     message = "ذخیره‌سازی امن انجام نشد؛ دوباره تلاش کن."
                                 }
-                            } else message = "فرمت لینک پشتیبانی نمی‌شود؛ لینک‌های VLESS، VMess، Trojan، Shadowsocks، WireGuard، Hysteria2 و SOCKS قابل افزودن‌اند."
-                        }, modifier = Modifier.fillMaxWidth()) {
+                            } else {
+                                message = "لینک معتبری پیدا نشد؛ هر لینک را در یک خط وارد کن."
+                            }
+, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("افزودن به سرورها")
                         }
                     }
