@@ -95,7 +95,15 @@ class ConfigStore(context: Context) {
         private const val TAG_BITS = 128
 
         fun isSupported(value: String): Boolean {
-            val scheme = value.substringBefore("://", "").lowercase()
+            val normalized = value.trim().removePrefix("Bridge ").trim()
+            if (normalized.startsWith("obfs4 ", ignoreCase = true)) {
+                val bridge = normalized.removePrefix("obfs4 ").trim()
+                return Regex(
+                    """^(?:\\[[0-9a-fA-F:]+]|[a-zA-Z0-9.-]+):[0-9]{1,5} [0-9a-fA-F]{40} cert=[A-Za-z0-9+/]+={0,2} iat-mode=[012]$"""
+                ).matches(bridge) &&
+                    bridge.substringAfter(':').substringBefore(' ').toIntOrNull() in 1..65535
+            }
+            val scheme = normalized.substringBefore("://", "").lowercase()
             return scheme in setOf("vmess", "vless", "trojan", "ss", "wireguard", "wg", "hysteria", "hysteria2", "hy2", "tuic", "anytls", "socks", "socks5", "socks5h", "http", "https")
         }
     }
