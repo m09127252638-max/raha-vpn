@@ -22,13 +22,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 
 private val Navy = Color(0xFF071426)
 private val Panel = Color(0xFF10243B)
 private val Gold = Color(0xFFFFC857)
 private val Muted = Color(0xFF9BAFC5)
 
-data class Server(val name: String, val address: String, val protocol: String)
+data class Server(val name: String, val address: String, val protocol: String, val rawConfig: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,11 +40,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun RahaApp() {
+    val context = LocalContext.current
+    val configStore = remember(context) { ConfigStore(context) }
+    val savedServers = remember(configStore) { configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) } }
     var selectedTab by remember { mutableStateOf(0) }
     var configText by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("برای شروع، یک کانفیگ به رها اضافه کن.") }
-    var servers by remember { mutableStateOf(listOf<Server>()) }
-    var selectedServer by remember { mutableStateOf<Server?>(null) }
+    var servers by remember { mutableStateOf(savedServers) }
+    var selectedServer by remember { mutableStateOf(savedServers.firstOrNull()) }
 
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
@@ -108,13 +112,18 @@ fun RahaApp() {
                         Button(onClick = {
                             val raw = configText.trim()
                             val protocol = raw.substringBefore("://", "").lowercase()
-                            if (protocol in listOf("vmess", "vless", "trojan", "ss", "wireguard")) {
-                                val item = Server("سرور " + (servers.size + 1), raw.take(48), protocol)
-                                servers = servers + item
-                                selectedServer = item
-                                configText = ""
-                                message = "کانفیگ به فهرست اضافه شد."
-                                selectedTab = 0
+                            if (ConfigStore.isSupported(raw)) {
+                                runCatching {
+                                    configStore.add(raw)
+                                    val item = serverFromConfig(raw, servers.size)
+                                    servers = servers + item
+                                    selectedServer = item
+                                    configText = ""
+                                    message = "کانفیگ به‌صورت رمزگذاری‌شده ذخیره شد."
+                                    selectedTab = 0
+                                }.onFailure {
+                                    message = "ذخیره‌سازی امن انجام نشد؛ دوباره تلاش کن."
+                                }
                             } else message = "فرمت شناخته نشد. لینک vmess، vless، trojan، ss یا wireguard وارد کن."
                         }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("افزودن به سرورها")
@@ -144,4 +153,13 @@ private fun RowScope.TabButton(label: String, active: Boolean, onClick: () -> Un
     Surface(modifier = Modifier.weight(1f).clickable(onClick = onClick), color = if (active) Gold else Panel, shape = RoundedCornerShape(12.dp)) {
         Text(label, modifier = Modifier.padding(vertical = 12.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = if (active) Navy else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
+}
+
+
+private fun serverFromConfig(raw: String, index: Int): Server {
+    val protocol = raw.substringBefore("://", "").lowercase()
+    val endpoint = Regex("@([^@:/?#]+):\\\\d+").find(raw)?.groupValues?.get(1)
+        ?: Regex("^([a-zA-Z0-9.-]+):\\\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
+        ?: "آدرس مخفی"
+    return Server("سرور " + (index + 1), endpoint, protocol, raw)
 }
