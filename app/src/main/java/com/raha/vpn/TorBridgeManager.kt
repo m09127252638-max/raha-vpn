@@ -22,6 +22,7 @@ import kotlin.coroutines.resumeWithException
 class TorBridgeManager(private val context: Context) {
     private var transportController: PTController? = null
     private var started = false
+    private var torStartRequested = false
 
     suspend fun connect(rawBridge: String): String {
         require(ConfigStore.isSupported(rawBridge)) { "خط پل obfs4 معتبر نیست." }
@@ -50,9 +51,14 @@ class TorBridgeManager(private val context: Context) {
     }
 
     suspend fun disconnect() {
-        runCatching { context.stopService(Intent(context, TorService::class.java)) }
+        if (torStartRequested) {
+            runCatching { withTimeout(15_000L) { awaitTorStopped() } }
+        } else {
+            runCatching { context.stopService(Intent(context, TorService::class.java)) }
+        }
         runCatching { transportController?.close() }
         transportController = null
+        torStartRequested = false
         started = false
     }
 
@@ -67,6 +73,42 @@ class TorBridgeManager(private val context: Context) {
             "SocksPort 127.0.0.1:19050",
             "SafeSocks 1"
         ).joinToString("\n", postfix = "\n")
+
+    private suspend fun awaitTorStopped() = suspendCancellableCoroutine<Unit> { continuation ->
+        val unregistered = AtomicBoolean(false)
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.getStringExtra(TorService.EXTRA_SERVICE_PACKAGE_NAME) != context.packageName) return
+                if (intent.action == TorService.ACTION_STATUS &&
+                    intent.getStringExtra(TorService.EXTRA_STATUS) == TorService.STATUS_OFF &&
+                    continuation.isActive
+                ) {
+                    continuation.resume(Unit)
+                }
+            }
+        }
+        fun unregister() {
+            if (unregistered.compareAndSet(false, true)) {
+                runCatching { context.unregisterReceiver(receiver) }
+            }
+        }
+        val filter = IntentFilter(TorService.ACTION_STATUS)
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("DEPRECATION")
+                context.registerReceiver(receiver, filter)
+            }
+            continuation.invokeOnCancellation { unregister() }
+            val stopped = context.stopService(Intent(context, TorService::class.java))
+            if (!stopped && continuation.isActive) continuation.resume(Unit)
+        } catch (error: Throwable) {
+            unregister()
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }
+        continuation.invokeOnCancellation { unregister() }
+    }
 
     private suspend fun awaitTorCircuit() = withTimeout(240_000L) {
         suspendCancellableCoroutine<Unit> { continuation ->
@@ -110,6 +152,7 @@ class TorBridgeManager(private val context: Context) {
                     context.registerReceiver(receiver, filter)
                 }
                 continuation.invokeOnCancellation { unregister() }
+                torStartRequested = true
                 context.startService(Intent(context, TorService::class.java))
             } catch (error: Throwable) {
                 unregister()
