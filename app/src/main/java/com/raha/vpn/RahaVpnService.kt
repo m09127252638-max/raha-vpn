@@ -79,7 +79,7 @@ class RahaVpnService : VpnService() {
                     lifecycleMutex.withLock {
                         cleanupResources()
                         publishStatus(STATUS_DISCONNECTED, "VPN قطع شد.")
-                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        leaveForeground()
                         stopSelf()
                     }
                 }
@@ -212,7 +212,7 @@ class RahaVpnService : VpnService() {
 
     private fun leaveForeground() {
         if (!foregroundActive) return
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        leaveForeground()
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         foregroundActive = false
     }
@@ -239,7 +239,7 @@ class RahaVpnService : VpnService() {
             lifecycleMutex.withLock {
                 cleanupResources()
                 publishStatus(STATUS_DISCONNECTED, "دسترسی VPN لغو شد.")
-                stopForeground(STOP_FOREGROUND_REMOVE)
+                leaveForeground()
                 stopSelf()
             }
         }
@@ -249,9 +249,13 @@ class RahaVpnService : VpnService() {
     override fun onBind(intent: Intent?): IBinder? = super.onBind(intent)
 
     override fun onDestroy() {
+        startJob?.cancel()
         runCatching {
             runBlocking(Dispatchers.IO) {
-                lifecycleMutex.withLock { cleanupResources() }
+                lifecycleMutex.withLock {
+                    cleanupResources()
+                    leaveForeground()
+                }
             }
         }
         scope.cancel()
