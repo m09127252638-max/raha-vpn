@@ -49,7 +49,7 @@ fun RahaApp() {
     val savedServers = remember(configStore) { configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) } }
     var selectedTab by remember { mutableStateOf(0) }
     var configText by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("برای شروع، یک کانفیگ به رها اضافه کن.") }
+    var message by remember { mutableStateOf("برای شروع، یک کانفیگ به برنامه اضافه کن.") }
     var servers by remember { mutableStateOf(savedServers) }
     var selectedServer by remember { mutableStateOf(savedServers.firstOrNull()) }
     var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
@@ -69,7 +69,7 @@ fun RahaApp() {
                         Text("اتصال آزاد، ساده و امن", color = Muted, fontSize = 12.sp)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("نسخه ۰.۱", color = Gold, fontSize = 12.sp)
+                    Text("نسخه ۰.۲", color = Gold, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(26.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
