@@ -30,15 +30,26 @@ object ShareLinkParser {
             .put("server", host)
             .put("server_port", port)
 
+        val credential = decode(userInfo)
+        require(credential.isNotBlank()) { "شناسه یا رمز سرور خالی است" }
         if (scheme == "vless") {
-            outbound.put("uuid", decode(userInfo))
+            require(Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$").matches(credential)) {
+                "شناسه UUID لینک VLESS معتبر نیست"
+            }
+            outbound.put("uuid", credential)
             val flow = query["flow"].orEmpty()
             if (flow.isNotBlank()) outbound.put("flow", flow)
         } else {
-            outbound.put("password", decode(userInfo))
+            outbound.put("password", credential)
         }
 
         val security = query["security"].orEmpty().lowercase()
+        require(security.isBlank() || security in setOf("none", "tls", "reality")) {
+            "روش امنیتی این لینک پشتیبانی نمی‌شود"
+        }
+        require(security != "reality" || scheme == "vless") {
+            "Reality فقط برای لینک VLESS پشتیبانی می‌شود"
+        }
         val tlsEnabled = when {
             security == "none" -> false
             security == "tls" || security == "reality" -> true
