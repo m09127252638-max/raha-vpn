@@ -83,7 +83,7 @@ fun RahaApp() {
                             Icon(Icons.Default.Shield, null, tint = Gold, modifier = Modifier.size(54.dp))
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(if (torConnected) "اتصال Tor برقرار است" else if (torConnecting) "در حال اتصال به پل obfs4..." else "آماده اتصال با پل obfs4", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(if (torConnected) "پروکسی محلی Tor فعال است" else if (torConnecting) "در حال اتصال به پل obfs4..." else "آماده اجرای پروکسی obfs4", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text(if (torConnected) "پروکسی محلی Tor: socks5://127.0.0.1:19050" else "یک پل obfs4 را از فهرست سرورها انتخاب کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(16.dp))
                         Button(
@@ -106,7 +106,7 @@ fun RahaApp() {
                                             try {
                                                 val socks = withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
                                                 torConnected = true
-                                                message = "اتصال به شبکه Tor برقرار شد؛ پروکسی محلی socks5://$socks"
+                                                message = "پروکسی محلی Tor اجرا شد: socks5://$socks (هنوز VPN سراسری نیست)."
                                             } catch (error: Throwable) {
                                                 torConnected = false
                                                 message = "اتصال پل ناموفق بود: " + (error.message ?: "خطای ناشناخته")
@@ -120,7 +120,7 @@ fun RahaApp() {
                             enabled = !torConnecting && (torConnected || selectedServer?.protocol == "obfs4"),
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (torConnecting) "در حال اتصال..." else if (torConnected) "قطع اتصال Tor" else "اتصال با obfs4") }
+                        ) { Text(if (torConnecting) "در حال اتصال..." else if (torConnected) "قطع اتصال Tor" else "اجرای پروکسی obfs4") }
                         Text("این نسخه پروکسی محلی Tor را راه‌اندازی می‌کند؛ هنوز تمام ترافیک گوشی از تونل VPN عبور نمی‌کند.", color = Muted, fontSize = 10.sp)
                     }
                 }
