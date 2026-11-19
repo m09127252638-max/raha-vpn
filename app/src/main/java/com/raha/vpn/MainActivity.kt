@@ -23,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val Navy = Color(0xFF071426)
 private val Panel = Color(0xFF10243B)
@@ -48,6 +51,9 @@ fun RahaApp() {
     var message by remember { mutableStateOf("برای شروع، یک کانفیگ به رها اضافه کن.") }
     var servers by remember { mutableStateOf(savedServers) }
     var selectedServer by remember { mutableStateOf(savedServers.firstOrNull()) }
+    var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
+    var dnsChecking by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
@@ -132,10 +138,49 @@ fun RahaApp() {
                     else -> {
                         Text("جستجوی سرورهای عمومی", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(8.dp))
-                        Text("این بخش برای جستجوی منابع عمومی و DNSهای قابل دسترس آماده می‌شود. نتایج قبل از افزودن باید اعتبارسنجی شوند.", color = Muted)
+                        Text("بررسی DNSهای عمومی رمزگذاری‌شده (DoH)", color = Muted)
                         Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onClick = { message = "جستجوی آنلاین در نسخه بعد، پس از پیاده‌سازی منبع امن و قابل اعتماد فعال می‌شود." }, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("جستجوی منابع عمومی")
+                        Button(
+                            onClick = {
+                                if (!dnsChecking) {
+                                    dnsChecking = true
+                                    coroutineScope.launch {
+                                        val results = withContext(Dispatchers.IO) { DnsProbe.checkAll() }
+                                        dnsResults = results
+                                        dnsChecking = false
+                                    }
+                                }
+                            },
+                            enabled = !dnsChecking,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Search, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (dnsChecking) "در حال بررسی..." else "بررسی DNSهای عمومی")
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        dnsResults.forEach { result ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Panel),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(result.provider, fontWeight = FontWeight.SemiBold)
+                                        Text(result.detail, color = Muted, fontSize = 12.sp)
+                                    }
+                                    Text(if (result.reachable) "فعال" else "ناموفق", color = if (result.reachable) Gold else Muted, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text("این بررسی فقط دسترسی DNS را می‌سنجد و به‌تنهایی فیلترشکن نیست.", color = Muted, fontSize = 11.sp)
+                        Spacer(Modifier.height(14.dp))
+                        OutlinedButton(onClick = { message = "جستجوی کانفیگ‌های عمومی هنوز در حال آماده‌سازی است؛ کانفیگ ناشناس بدون اعتبارسنجی اضافه نمی‌شود." }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("جستجوی کانفیگ‌های عمومی")
                         }
                     }
                 }
