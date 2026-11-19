@@ -39,7 +39,7 @@ object PublicConfigSearch {
                         output.toByteArray()
                     }
                     val raw = bytes.toString(Charsets.UTF_8)
-                    val decoded = if (raw.contains("://")) raw else runCatching {
+                    val decoded = if (source.contains("obfs4_", ignoreCase = true) || raw.contains("://")) raw else runCatching {
                         String(Base64.decode(raw.filterNot { it.isWhitespace() }, Base64.DEFAULT), Charsets.UTF_8)
                     }.getOrDefault("")
                     decoded.lineSequence().map { it.trim() }
