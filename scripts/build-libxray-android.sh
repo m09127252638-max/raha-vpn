@@ -142,10 +142,14 @@ with ZipFile(aar_path) as aar:
     classes = aar.read("classes.jar")
 with ZipFile(io.BytesIO(classes)) as jar:
     class_names = jar.namelist()
-    if not any(name.endswith("/LibXray.class") for name in class_names):
-        raise SystemExit("Generated AAR does not expose the LibXray API")
-    if not any(name.endswith("/PTController.class") for name in class_names):
-        raise SystemExit("Generated AAR does not expose the combined obfs4 PTController API")
+    required = {
+        "libXray/LibXray.class",
+        "libXray/PTController.class",
+        "libXray/DialerController.class",
+    }
+    missing = required.difference(class_names)
+    if missing:
+        raise SystemExit("Generated AAR is missing expected gomobile classes: " + ", ".join(sorted(missing)))
 PY
 
 mkdir -p app/libs
