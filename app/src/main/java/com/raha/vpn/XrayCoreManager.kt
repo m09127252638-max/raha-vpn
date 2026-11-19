@@ -50,7 +50,8 @@ class XrayCoreManager {
         invoke("stopXray")
     }
 
-    fun isRunning(): Boolean = invoke("getXrayState").optBoolean("data", false)
+    fun isRunning(): Boolean =
+        invoke("getXrayState").optJSONObject("data")?.optBoolean("running", false) ?: false
 
     private fun invoke(method: String, payload: JSONObject? = null): JSONObject {
         val request = JSONObject()
