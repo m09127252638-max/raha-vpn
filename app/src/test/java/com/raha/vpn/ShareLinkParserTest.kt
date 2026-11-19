@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -21,6 +22,17 @@ class ShareLinkParserTest {
         assertTrue(ConfigStore.isSupported(valid))
         assertFalse(ConfigStore.isSupported("obfs4 192.0.2.10:443 invalid-fingerprint cert=bad iat-mode=0"))
         assertFalse(ConfigStore.isSupported("obfs4 192.0.2.10:99999 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"))
+    }
+
+    @Test
+    fun buildsTorConfigForObfs4Bridge() {
+        val bridge = "obfs4 192.0.2.10:443 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"
+        val torrc = TorBridgeManager(RuntimeEnvironment.getApplication())
+            .buildTorrc(bridge, "127.0.0.1:12345")
+        assertTrue(torrc.contains("UseBridges 1\\n"))
+        assertTrue(torrc.contains("ClientTransportPlugin obfs4 socks5 127.0.0.1:12345\\n"))
+        assertTrue(torrc.contains("Bridge $bridge\\n"))
+        assertTrue(torrc.endsWith("SafeSocks 1\\n"))
     }
 
     @Test
