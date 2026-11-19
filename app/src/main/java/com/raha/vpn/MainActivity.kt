@@ -401,7 +401,7 @@ private fun serverFromConfig(raw: String, index: Int): Server {
     val isObfs4 = normalized.startsWith("obfs4 ", ignoreCase = true)
     val protocol = if (isObfs4) "obfs4" else normalized.substringBefore("://", "").lowercase()
     val endpoint = if (isObfs4) {
-        Regex("""^obfs4\\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(normalized)?.groupValues?.get(1)
+        Regex("""^obfs4\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(normalized)?.groupValues?.get(1)
     } else {
         Regex("@([^@:/?#]+):\\d+").find(normalized)?.groupValues?.get(1)
             ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(normalized.substringAfter("://", ""))?.groupValues?.get(1)
