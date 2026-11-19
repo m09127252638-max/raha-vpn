@@ -96,7 +96,7 @@ class ConfigStore(context: Context) {
 
         fun isSupported(value: String): Boolean {
             val scheme = value.substringBefore("://", "").lowercase()
-            return scheme in setOf("vmess", "vless", "trojan", "ss", "wireguard")
+            return scheme in setOf("vmess", "vless", "trojan", "ss", "wireguard", "wg", "hysteria", "hysteria2", "hy2", "tuic", "anytls", "socks", "socks5", "socks5h", "http", "https")
         }
     }
 }
