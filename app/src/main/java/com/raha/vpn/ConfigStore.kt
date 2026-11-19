@@ -97,7 +97,7 @@ class ConfigStore(context: Context) {
         fun isSupported(value: String): Boolean {
             val normalized = value.trim().replaceFirst(Regex("^Bridge\\s+", RegexOption.IGNORE_CASE), "").trim()
             if (normalized.startsWith("obfs4 ", ignoreCase = true)) {
-                val bridge = normalized.removePrefix("obfs4 ").trim()
+                val bridge = normalized.replaceFirst(Regex("^obfs4\\s+", RegexOption.IGNORE_CASE), "").trim()
                 return Regex(
                     """^(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+):[0-9]{1,5} [0-9a-fA-F]{40} cert=[A-Za-z0-9+/]+={0,2} iat-mode=[012]$"""
                 ).matches(bridge) &&
