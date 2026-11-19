@@ -41,7 +41,7 @@ object PublicConfigSearch {
                         String(Base64.decode(raw.filterNot { it.isWhitespace() }, Base64.DEFAULT), Charsets.UTF_8)
                     }.getOrDefault("")
                     decoded.lineSequence().map { it.trim() }
-                        .filter { it.startsWith("https://") || it.substringBefore("://").lowercase() in setOf("vless", "vmess", "trojan", "ss", "hysteria", "hysteria2", "hy2", "tuic", "wireguard", "wg", "anytls") }
+                        .filter { it.substringBefore("://").lowercase() in setOf("vless", "vmess", "trojan", "ss", "hysteria", "hysteria2", "hy2", "tuic", "wireguard", "wg", "anytls") }
                         .filter { ConfigStore.isSupported(it) }
                         .take(500).forEach { found.add(it) }
                 } finally { connection.disconnect() }
