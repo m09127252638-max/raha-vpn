@@ -39,6 +39,130 @@ object XrayConfigBuilder {
             .toString()
     }
 
+    /**
+     * Wraps a validated Xray outbound in an Android TUN configuration.
+     * The TUN descriptor is supplied by VpnService.establish() through Xray's
+     * documented xray.tun.fd environment key.
+     */
+    fun buildTunConfig(outboundDocument: JSONObject, tunFd: Int, torMode: Boolean): String {
+        require(tunFd > 0) { "شناسه فایل TUN معتبر نیست" }
+        val sourceOutbounds = outboundDocument.optJSONArray("outbounds")
+            ?: error("خروجی موتور Xray خالی است")
+        require(sourceOutbounds.length() > 0) { "هیچ سرور قابل‌استفاده‌ای در کانفیگ نیست" }
+
+        val proxy = JSONObject(sourceOutbounds.getJSONObject(0).toString())
+            .put("tag", "proxy")
+        val outbounds = JSONArray()
+            .put(proxy)
+            .put(JSONObject()
+                .put("tag", "dns-out")
+                .put("protocol", "dns")
+                .put("settings", JSONObject().put(
+                    "rules",
+                    JSONArray().put(JSONObject().put("action", "hijack"))
+                )))
+            .put(JSONObject().put("tag", "direct").put("protocol", "freedom"))
+            .put(JSONObject().put("tag", "block").put("protocol", "blackhole"))
+
+        val tunInbound = JSONObject()
+            .put("tag", "tun-in")
+            .put("port", 0)
+            .put("protocol", "tun")
+            .put("settings", JSONObject().put("name", "hmag0").put("mtu", TUN_MTU))
+            .put("sniffing", JSONObject()
+                .put("enabled", true)
+                .put("destOverride", JSONArray().put("http").put("tls").put("quic"))
+                .put("routeOnly", true))
+
+        val dnsRule = JSONObject()
+            .put("type", "field")
+            .put("inboundTag", JSONArray().put("tun-in"))
+            .put("port", "53")
+            .put("network", "tcp,udp")
+            .put("outboundTag", "dns-out")
+        val rules = JSONArray().put(dnsRule)
+        if (torMode) {
+            // Tor's SOCKS transport is TCP-only. DNS is handled above through
+            // Xray's DoH resolver; other UDP is explicitly blocked, never leaked.
+            rules.put(JSONObject()
+                .put("type", "field")
+                .put("inboundTag", JSONArray().put("tun-in"))
+                .put("network", "udp")
+                .put("outboundTag", "block"))
+        }
+
+        return JSONObject()
+            .put("log", JSONObject().put("loglevel", "warning"))
+            .put("env", JSONObject().put("xray.tun.fd", tunFd.toString()))
+            .put("inbounds", JSONArray().put(tunInbound))
+            .put("outbounds", outbounds)
+            .put("dns", JSONObject()
+                .put("servers", JSONArray()
+                    .put("https://1.1.1.1/dns-query")
+                    .put("https://8.8.8.8/dns-query"))
+                .put("queryStrategy", "UseIP"))
+            .put("routing", JSONObject()
+                .put("domainStrategy", "AsIs")
+                .put("rules", rules))
+            .toString()
+    }
+
+    fun buildTorTunConfig(tunFd: Int, socksAddress: String): String {
+        val host: String
+        val port: Int
+        if (socksAddress.startsWith("[")) {
+            host = socksAddress.substringAfter("[").substringBefore("]")
+            port = socksAddress.substringAfter("]:").toIntOrNull()
+                ?: error("پورت SOCKS مربوط به Tor معتبر نیست")
+        } else {
+            host = socksAddress.substringBeforeLast(':')
+            port = socksAddress.substringAfterLast(':').toIntOrNull()
+                ?: error("پورت SOCKS مربوط به Tor معتبر نیست")
+        }
+        require(host.isNotBlank() && port in 1..65535) { "نشانی SOCKS مربوط به Tor معتبر نیست" }
+        val outbound = JSONObject()
+            .put("tag", "proxy")
+            .put("protocol", "socks")
+            .put("settings", JSONObject().put("servers", JSONArray().put(
+                JSONObject().put("address", host).put("port", port)
+            )))
+        return buildTunConfig(JSONObject().put("outbounds", JSONArray().put(outbound)), tunFd, torMode = true)
+    }
+
+    fun outboundServerAddress(outboundDocument: JSONObject): String {
+        val outbounds = outboundDocument.optJSONArray("outbounds")
+            ?: error("خروجی موتور Xray خالی است")
+        require(outbounds.length() > 0) { "هیچ خروجی سروری در کانفیگ نیست" }
+        val settings = outbounds.getJSONObject(0).optJSONObject("settings")
+            ?: error("تنظیمات سرور در کانفیگ وجود ندارد")
+        val server = when {
+            settings.optJSONArray("vnext")?.length() ?: 0 > 0 ->
+                settings.getJSONArray("vnext").getJSONObject(0)
+            settings.optJSONArray("servers")?.length() ?: 0 > 0 ->
+                settings.getJSONArray("servers").getJSONObject(0)
+            else -> error("نشانی سرور در کانفیگ پیدا نشد")
+        }
+        return server.optString("address").takeIf { it.isNotBlank() }
+            ?: error("نشانی سرور در کانفیگ خالی است")
+    }
+
+    fun withResolvedServerAddress(outboundDocument: JSONObject, resolvedAddress: String): JSONObject {
+        require(resolvedAddress.isNotBlank()) { "نشانی IP سرور خالی است" }
+        val result = JSONObject(outboundDocument.toString())
+        val outbounds = result.getJSONArray("outbounds")
+        require(outbounds.length() > 0) { "هیچ خروجی سروری در کانفیگ نیست" }
+        val settings = outbounds.getJSONObject(0).getJSONObject("settings")
+        val server = when {
+            settings.optJSONArray("vnext")?.length() ?: 0 > 0 ->
+                settings.getJSONArray("vnext").getJSONObject(0)
+            settings.optJSONArray("servers")?.length() ?: 0 > 0 ->
+                settings.getJSONArray("servers").getJSONObject(0)
+            else -> error("نشانی سرور در کانفیگ پیدا نشد")
+        }
+        server.put("address", resolvedAddress)
+        return result
+    }
+
     private fun vmess(link: String): JSONObject {
         val encoded = link.substringAfter("://").substringBefore('#')
         val decoded = try {
@@ -176,6 +300,7 @@ object XrayConfigBuilder {
             Uri.decode(part.substringBefore('=')) to Uri.decode(part.substringAfter('=', ""))
         }
 
+    private const val TUN_MTU = 1400
     private const val UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
     private val UUID_REGEX = Regex(UUID_PATTERN)
 }
