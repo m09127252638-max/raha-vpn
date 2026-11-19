@@ -57,6 +57,9 @@ fun RahaApp() {
     var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
     var configSearching by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val torBridgeManager = remember(context) { TorBridgeManager(context.applicationContext) }
+    var torConnecting by remember { mutableStateOf(false) }
+    var torConnected by remember { mutableStateOf(false) }
 
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
@@ -80,10 +83,45 @@ fun RahaApp() {
                             Icon(Icons.Default.Shield, null, tint = Gold, modifier = Modifier.size(54.dp))
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text("هنوز متصل نیستی", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("موتور اتصال در مرحله بعد اضافه می‌شود", color = Muted, fontSize = 12.sp)
+                        Text(if (torConnected) "اتصال Tor برقرار است" else if (torConnecting) "در حال اتصال به پل obfs4..." else "آماده اتصال با پل obfs4", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(if (torConnected) "پروکسی محلی Tor: socks5://127.0.0.1:9050" else "یک پل obfs4 را از فهرست سرورها انتخاب کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { message = "اتصال هنوز فعال نشده؛ ابتدا موتور امن VPN باید به پروژه اضافه شود." }, enabled = false, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp)) { Text("اتصال") }
+                        Button(
+                            onClick = {
+                                if (torConnected) {
+                                    torConnecting = true
+                                    coroutineScope.launch {
+                                        withContext(Dispatchers.IO) { torBridgeManager.disconnect() }
+                                        torConnected = false
+                                        torConnecting = false
+                                        message = "اتصال Tor قطع شد."
+                                    }
+                                } else {
+                                    val bridge = selectedServer?.takeIf { it.protocol == "obfs4" }?.rawConfig
+                                    if (bridge == null) {
+                                        message = "ابتدا یک پل obfs4 را از فهرست سرورها انتخاب کن."
+                                    } else {
+                                        torConnecting = true
+                                        coroutineScope.launch {
+                                            try {
+                                                val socks = withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
+                                                torConnected = true
+                                                message = "اتصال به شبکه Tor برقرار شد؛ پروکسی محلی socks5://$socks"
+                                            } catch (error: Throwable) {
+                                                torConnected = false
+                                                message = "اتصال پل ناموفق بود: " + (error.message ?: "خطای ناشناخته")
+                                            } finally {
+                                                torConnecting = false
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !torConnecting && (torConnected || selectedServer?.protocol == "obfs4"),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) { Text(if (torConnecting) "در حال اتصال..." else if (torConnected) "قطع اتصال Tor" else "اتصال با obfs4") }
+                        Text("این نسخه پروکسی محلی Tor را راه‌اندازی می‌کند؛ هنوز تمام ترافیک گوشی از تونل VPN عبور نمی‌کند.", color = Muted, fontSize = 10.sp)
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -190,7 +228,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(8.dp))
                         Text("این بررسی فقط دسترسی DNS را می‌سنجد و به‌تنهایی فیلترشکن نیست.", color = Muted, fontSize = 11.sp)
-                        Text("پل‌های obfs4 از فهرست عمومی دریافت می‌شوند؛ برای اتصال واقعی به موتور Tor و obfs4proxy نیاز است و فعلاً فقط ذخیره و نمایش داده می‌شوند.", color = Muted, fontSize = 11.sp)
+                        Text("پل‌های obfs4 با موتور Tor و obfs4proxy داخلی قابل راه‌اندازی‌اند. پل‌های عمومی ممکن است از کار افتاده باشند؛ در صورت شکست، پل دیگری را امتحان کن.", color = Muted, fontSize = 11.sp)
                         Spacer(Modifier.height(14.dp))
                         OutlinedButton(onClick = {
                             if (!configSearching) {
