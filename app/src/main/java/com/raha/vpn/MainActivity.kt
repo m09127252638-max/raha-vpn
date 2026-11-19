@@ -84,7 +84,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(14.dp))
                         Text(if (torConnected) "اتصال Tor برقرار است" else if (torConnecting) "در حال اتصال به پل obfs4..." else "آماده اتصال با پل obfs4", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text(if (torConnected) "پروکسی محلی Tor: socks5://127.0.0.1:9050" else "یک پل obfs4 را از فهرست سرورها انتخاب کن.", color = Muted, fontSize = 12.sp)
+                        Text(if (torConnected) "پروکسی محلی Tor: socks5://127.0.0.1:19050" else "یک پل obfs4 را از فهرست سرورها انتخاب کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = {
