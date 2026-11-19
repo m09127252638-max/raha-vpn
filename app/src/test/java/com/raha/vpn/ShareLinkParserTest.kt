@@ -16,6 +16,14 @@ class ShareLinkParserTest {
     private val uuid = "01234567-89ab-cdef-0123-456789abcdef"
 
     @Test
+    fun acceptsValidObfs4BridgeAndRejectsMalformedBridge() {
+        val valid = "obfs4 192.0.2.10:443 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"
+        assertTrue(ConfigStore.isSupported(valid))
+        assertFalse(ConfigStore.isSupported("obfs4 192.0.2.10:443 invalid-fingerprint cert=bad iat-mode=0"))
+        assertFalse(ConfigStore.isSupported("obfs4 192.0.2.10:99999 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"))
+    }
+
+    @Test
     fun convertsVlessTlsWebSocketLink() {
         val raw = "vless://$uuid@edge.example:443?security=tls&type=ws&sni=cdn.example&host=cdn.example&path=%2Fgateway#test"
         val config = JSONObject(ShareLinkParser.toSingBoxConfig(raw))
