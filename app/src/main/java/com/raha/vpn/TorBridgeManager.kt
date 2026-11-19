@@ -46,7 +46,7 @@ class TorBridgeManager(private val context: Context) {
 
             awaitTorCircuit()
             started = true
-            return "127.0.0.1:9050"
+            return "127.0.0.1:19050"
         } catch (error: Throwable) {
             disconnect()
             throw error
@@ -67,7 +67,8 @@ class TorBridgeManager(private val context: Context) {
             "UseBridges 1",
             "ClientTransportPlugin obfs4 socks5 $transportAddress",
             "Bridge $bridge",
-            "SocksPort 127.0.0.1:9050",
+            "SocksPort 0",
+            "SocksPort 127.0.0.1:19050",
             "SafeSocks 1"
         ).joinToString("\n", postfix = "\n")
 
