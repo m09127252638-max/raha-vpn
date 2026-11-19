@@ -65,7 +65,7 @@ fun RahaApp() {
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("رها VPN", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("ATENAMONTAZER", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         Text("اتصال آزاد، ساده و امن", color = Muted, fontSize = 12.sp)
                     }
                     Spacer(Modifier.weight(1f))
