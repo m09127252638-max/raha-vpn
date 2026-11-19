@@ -54,6 +54,8 @@ fun RahaApp() {
     var selectedServer by remember { mutableStateOf(savedServers.firstOrNull()) }
     var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
     var dnsChecking by remember { mutableStateOf(false) }
+    var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
+    var configSearching by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
@@ -189,9 +191,37 @@ fun RahaApp() {
                         Spacer(Modifier.height(8.dp))
                         Text("این بررسی فقط دسترسی DNS را می‌سنجد و به‌تنهایی فیلترشکن نیست.", color = Muted, fontSize = 11.sp)
                         Spacer(Modifier.height(14.dp))
-                        OutlinedButton(onClick = { message = "جستجوی کانفیگ‌های عمومی هنوز در حال آماده‌سازی است؛ کانفیگ ناشناس بدون اعتبارسنجی اضافه نمی‌شود." }, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("جستجوی کانفیگ‌های عمومی")
+                        OutlinedButton(onClick = {
+                            if (!configSearching) {
+                                configSearching = true
+                                coroutineScope.launch {
+                                    val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
+                                    publicConfigs = found
+                                    configSearching = false
+                                    message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else found.size.toString() + " کانفیگ عمومی پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
+                                }
+                            }
+                        }, enabled = !configSearching, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text(if (configSearching) "در حال جستجو..." else "جستجوی کانفیگ‌های عمومی")
                         }
+                        publicConfigs.take(25).forEach { raw ->
+                            Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(raw.substringBefore("://").uppercase() + " • کانفیگ عمومی", fontSize = 12.sp)
+                                        Text(raw.take(64), color = Muted, fontSize = 10.sp, maxLines = 1)
+                                    }
+                                    TextButton(onClick = {
+                                        runCatching { configStore.add(raw) }.onSuccess {
+                                            servers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
+                                            publicConfigs = publicConfigs.filterNot { it == raw }
+                                            message = "کانفیگ ذخیره شد؛ اتصال VPN هنوز تکمیل نشده است."
+                                        }.onFailure { message = "ذخیره کانفیگ انجام نشد." }
+                                    }) { Text("افزودن", color = Gold) }
+                                }
+                            }
+                        }
+                        if (publicConfigs.size > 25) Text("۲۵ مورد اول نمایش داده می‌شود؛ " + publicConfigs.size + " مورد دریافت شد.", color = Muted, fontSize = 11.sp)
                     }
                 }
                 Spacer(Modifier.weight(1f))
