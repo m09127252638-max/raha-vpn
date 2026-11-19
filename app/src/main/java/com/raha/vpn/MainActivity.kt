@@ -122,9 +122,9 @@ fun RahaApp() {
                     }
                     1 -> {
                         Text("افزودن کانفیگ", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("متن کانفیگ‌های پشتیبانی‌شده را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
+                        Text("لینک سرور یا خط کامل obfs4 را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
-                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless:// یا vmess:// یا trojan:// یا hysteria2://") }, minLines = 4)
+                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless:// یا vmess:// یا trojan:// یا hysteria2:// یا obfs4 ...") }, minLines = 4)
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
                             val entries = configText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
@@ -190,6 +190,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(8.dp))
                         Text("این بررسی فقط دسترسی DNS را می‌سنجد و به‌تنهایی فیلترشکن نیست.", color = Muted, fontSize = 11.sp)
+                        Text("پل‌های obfs4 از فهرست عمومی دریافت می‌شوند؛ برای اتصال واقعی به موتور Tor و obfs4proxy نیاز است و فعلاً فقط ذخیره و نمایش داده می‌شوند.", color = Muted, fontSize = 11.sp)
                         Spacer(Modifier.height(14.dp))
                         OutlinedButton(onClick = {
                             if (!configSearching) {
@@ -208,7 +209,7 @@ fun RahaApp() {
                             Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
-                                        Text(raw.substringBefore("://").uppercase() + " • کانفیگ عمومی", fontSize = 12.sp)
+                                        Text((if (raw.startsWith("obfs4 ", ignoreCase = true)) "OBFS4" else raw.substringBefore("://").uppercase()) + " • کانفیگ عمومی", fontSize = 12.sp)
                                         Text(raw.take(64), color = Muted, fontSize = 10.sp, maxLines = 1)
                                     }
                                     TextButton(onClick = {
@@ -242,9 +243,13 @@ private fun RowScope.TabButton(label: String, active: Boolean, onClick: () -> Un
 
 
 private fun serverFromConfig(raw: String, index: Int): Server {
-    val protocol = raw.substringBefore("://", "").lowercase()
-    val endpoint = Regex("@([^@:/?#]+):\\d+").find(raw)?.groupValues?.get(1)
-        ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
-        ?: "آدرس مخفی"
+    val isObfs4 = raw.startsWith("obfs4 ", ignoreCase = true)
+    val protocol = if (isObfs4) "obfs4" else raw.substringBefore("://", "").lowercase()
+    val endpoint = if (isObfs4) {
+        Regex("""^obfs4\\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1)
+    } else {
+        Regex("@([^@:/?#]+):\\d+").find(raw)?.groupValues?.get(1)
+            ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
+    } ?: "آدرس مخفی"
     return Server("سرور " + (index + 1), endpoint, protocol, raw)
 }
