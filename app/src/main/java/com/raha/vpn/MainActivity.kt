@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -104,6 +105,14 @@ fun RahaApp() {
                                             Text(server.protocol + " • " + server.address, color = Muted, fontSize = 12.sp)
                                         }
                                         if (selectedServer == server) Text("انتخاب‌شده", color = Gold, fontSize = 12.sp)
+                                        IconButton(onClick = {
+                                            configStore.remove(server.rawConfig)
+                                            servers = servers.filterNot { it.rawConfig == server.rawConfig }
+                                            if (selectedServer?.rawConfig == server.rawConfig) selectedServer = servers.firstOrNull()
+                                            message = "سرور از فهرست حذف شد."
+                                        }) {
+                                            Icon(Icons.Default.Delete, contentDescription = "حذف سرور", tint = Muted)
+                                        }
                                     }
                                 }
                             }
