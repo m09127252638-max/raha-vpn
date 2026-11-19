@@ -8,6 +8,7 @@ import android.os.Build
 import org.torproject.jni.TorService
 import go.libXray.LibXray
 import go.libXray.PTController
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
@@ -52,7 +53,7 @@ class TorBridgeManager(private val context: Context) {
 
     suspend fun disconnect() {
         if (torStartRequested) {
-            runCatching { withTimeout(15_000L) { awaitTorStopped() } }
+            runCatching { withTimeout(15_000L) { awaitTorStopped(); delay(1_500L) } }
         } else {
             runCatching { context.stopService(Intent(context, TorService::class.java)) }
         }
