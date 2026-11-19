@@ -35,6 +35,7 @@ class RahaVpnService : VpnService() {
 
     private var startJob: Job? = null
     private var tunDescriptor: ParcelFileDescriptor? = null
+    private var foregroundActive = false
 
     override fun onCreate() {
         super.onCreate()
@@ -65,7 +66,7 @@ class RahaVpnService : VpnService() {
                         } catch (_: Throwable) {
                             cleanupResources()
                             publishStatus(STATUS_FAILED, "اتصال برقرار نشد؛ کانفیگ، پل یا دسترسی شبکه را بررسی کن.")
-                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            leaveForeground()
                             stopSelf()
                         }
                     }
@@ -206,9 +207,18 @@ class RahaVpnService : VpnService() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        foregroundActive = true
+    }
+
+    private fun leaveForeground() {
+        if (!foregroundActive) return
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+        foregroundActive = false
     }
 
     private fun updateNotification(message: String) {
+        if (!foregroundActive) return
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, buildNotification(message))
     }
