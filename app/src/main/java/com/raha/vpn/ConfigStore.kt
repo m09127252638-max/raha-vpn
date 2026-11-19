@@ -99,7 +99,7 @@ class ConfigStore(context: Context) {
             if (normalized.startsWith("obfs4 ", ignoreCase = true)) {
                 val bridge = normalized.removePrefix("obfs4 ").trim()
                 return Regex(
-                    """^(?:\\[[0-9a-fA-F:]+\\]|[a-zA-Z0-9.-]+):[0-9]{1,5} [0-9a-fA-F]{40} cert=[A-Za-z0-9+/]+={0,2} iat-mode=[012]$"""
+                    """^(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+):[0-9]{1,5} [0-9a-fA-F]{40} cert=[A-Za-z0-9+/]+={0,2} iat-mode=[012]$"""
                 ).matches(bridge) &&
                     bridge.substringAfter(':').substringBefore(' ').toIntOrNull() in 1..65535
             }
