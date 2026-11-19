@@ -42,13 +42,7 @@ class TorBridgeManager(private val context: Context) {
 
             val torrc = TorService.getTorrc(context)
             torrc.parentFile?.mkdirs()
-            torrc.writeText(
-                "UseBridges 1\\n" +
-                    "ClientTransportPlugin obfs4 socks5 $transportAddress\\n" +
-                    "Bridge $bridge\\n" +
-                    "SocksPort 127.0.0.1:9050\\n" +
-                    "SafeSocks 1\\n"
-            )
+            torrc.writeText(buildTorrc(bridge, transportAddress))
 
             awaitTorCircuit()
             started = true
@@ -67,6 +61,15 @@ class TorBridgeManager(private val context: Context) {
     }
 
     fun isConnected(): Boolean = started
+
+    internal fun buildTorrc(bridge: String, transportAddress: String): String =
+        listOf(
+            "UseBridges 1",
+            "ClientTransportPlugin obfs4 socks5 $transportAddress",
+            "Bridge $bridge",
+            "SocksPort 127.0.0.1:9050",
+            "SafeSocks 1"
+        ).joinToString("\\n", postfix = "\\n")
 
     private suspend fun awaitTorCircuit() = withTimeout(240_000L) {
         suspendCancellableCoroutine<Unit> { continuation ->
