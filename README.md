@@ -1,6 +1,6 @@
-# رها VPN (Raha VPN)
+# ATENAMONTAZER
 
-اپلیکیشن اندروید با رابط کاربری فارسی و تم تیره.
+اپلیکیشن اندروید ATENAMONTAZER با رابط کاربری فارسی و تم تیره.
 
 ## وضعیت فعلی
 - پوسته اولیه Android با Jetpack Compose
