@@ -3,8 +3,6 @@ package com.raha.vpn
 import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 
 /**
  * Converts supported share links into a minimal sing-box configuration.
@@ -22,7 +20,7 @@ object ShareLinkParser {
         }
         val host = uri.host?.takeIf { it.isNotBlank() } ?: error("آدرس سرور در لینک پیدا نشد")
         val port = uri.port.takeIf { it in 1..65535 } ?: error("پورت سرور معتبر نیست")
-        val userInfo = uri.userInfo?.takeIf { it.isNotBlank() } ?: error("شناسه یا رمز سرور وجود ندارد")
+        val userInfo = uri.encodedUserInfo?.takeIf { it.isNotBlank() } ?: error("شناسه یا رمز سرور وجود ندارد")
         val query = parseQuery(uri.encodedQuery.orEmpty())
         val tag = "proxy"
 
@@ -33,11 +31,11 @@ object ShareLinkParser {
             .put("server_port", port)
 
         if (scheme == "vless") {
-            outbound.put("uuid", decode(userInfo.substringAfterLast(':')))
+            outbound.put("uuid", decode(userInfo))
             val flow = query["flow"].orEmpty()
             if (flow.isNotBlank()) outbound.put("flow", flow)
         } else {
-            outbound.put("password", decode(userInfo.substringAfterLast(':')))
+            outbound.put("password", decode(userInfo))
         }
 
         val security = query["security"].orEmpty().lowercase()
@@ -125,5 +123,5 @@ object ShareLinkParser {
     }
 
     private fun decode(value: String): String =
-        URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+        Uri.decode(value)
 }
