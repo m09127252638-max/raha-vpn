@@ -74,7 +74,7 @@ fun RahaApp() {
                         Text("اتصال آزاد، ساده و امن", color = Muted, fontSize = 12.sp)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("نسخه ۰.۲", color = Gold, fontSize = 12.sp)
+                    Text("نسخه ۰.۳", color = Gold, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(26.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
