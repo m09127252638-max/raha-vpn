@@ -15,7 +15,7 @@ dependencyResolutionManagement {
             forRepository {
                 maven { url = uri("https://raw.githubusercontent.com/guardianproject/gpmaven/master") }
             }
-            filter { includeGroup("info.guardianproject") }
+            filter { includeModule("info.guardianproject", "tor-android") }
         }
     }
 }
