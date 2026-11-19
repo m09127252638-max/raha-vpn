@@ -141,7 +141,7 @@ fun RahaApp() {
                             } else {
                                 message = "لینک معتبری پیدا نشد؛ هر لینک را در یک خط وارد کن."
                             }
-, modifier = Modifier.fillMaxWidth()) {
+                        }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("افزودن به سرورها")
                         }
                     }
