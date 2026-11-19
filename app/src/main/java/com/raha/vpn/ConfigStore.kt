@@ -101,7 +101,15 @@ class ConfigStore(context: Context) {
                 return Regex(
                     """^(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+):[0-9]{1,5} [0-9a-fA-F]{40} cert=[A-Za-z0-9+/]+={0,2} iat-mode=[012]$"""
                 ).matches(bridge) &&
-                    bridge.substringAfter(':').substringBefore(' ').toIntOrNull() in 1..65535
+                    run {
+                        val endpoint = bridge.substringBefore(' ')
+                        val portText = if (endpoint.startsWith("[")) {
+                            endpoint.substringAfter("]:", "")
+                        } else {
+                            endpoint.substringAfterLast(':', "")
+                        }
+                        portText.toIntOrNull() in 1..65535
+                    }
             }
             val scheme = normalized.substringBefore("://", "").lowercase()
             return scheme in setOf("vmess", "vless", "trojan", "ss", "wireguard", "wg", "hysteria", "hysteria2", "hy2", "tuic", "anytls", "socks", "socks5", "socks5h", "http", "https")
