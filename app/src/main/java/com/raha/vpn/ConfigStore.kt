@@ -34,8 +34,9 @@ class ConfigStore(context: Context) {
         val normalized = rawConfig.trim()
         require(isSupported(normalized)) { "Unsupported configuration scheme" }
         val current = preferences.getStringSet(KEY_CONFIGS, emptySet()).orEmpty().toMutableSet()
-        val encrypted = encrypt(normalized)
-        current.add(encrypted)
+        val alreadySaved = current.any { encoded -> runCatching { decrypt(encoded) == normalized }.getOrDefault(false) }
+        if (alreadySaved) return
+        current.add(encrypt(normalized))
         check(preferences.edit().putStringSet(KEY_CONFIGS, current).commit()) {
             "Could not save configuration"
         }
