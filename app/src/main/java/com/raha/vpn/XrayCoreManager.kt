@@ -1,8 +1,8 @@
 package com.raha.vpn
 
 import android.net.VpnService
-import go.libXray.DialerController
-import go.libXray.LibXray
+import libXray.DialerController
+import libXray.LibXray
 import org.json.JSONObject
 
 /**
