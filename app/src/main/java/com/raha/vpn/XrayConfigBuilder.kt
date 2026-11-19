@@ -45,7 +45,7 @@ object XrayConfigBuilder {
      * documented xray.tun.fd environment key.
      */
     fun buildTunConfig(outboundDocument: JSONObject, tunFd: Int, torMode: Boolean): String {
-        require(tunFd > 0) { "شناسه فایل TUN معتبر نیست" }
+        require(tunFd >= 0) { "شناسه فایل TUN معتبر نیست" }
         val sourceOutbounds = outboundDocument.optJSONArray("outbounds")
             ?: error("خروجی موتور Xray خالی است")
         require(sourceOutbounds.length() > 0) { "هیچ سرور قابل‌استفاده‌ای در کانفیگ نیست" }
@@ -136,9 +136,9 @@ object XrayConfigBuilder {
         val settings = outbounds.getJSONObject(0).optJSONObject("settings")
             ?: error("تنظیمات سرور در کانفیگ وجود ندارد")
         val server = when {
-            settings.optJSONArray("vnext")?.length() ?: 0 > 0 ->
+            (settings.optJSONArray("vnext")?.length() ?: 0) > 0 ->
                 settings.getJSONArray("vnext").getJSONObject(0)
-            settings.optJSONArray("servers")?.length() ?: 0 > 0 ->
+            (settings.optJSONArray("servers")?.length() ?: 0) > 0 ->
                 settings.getJSONArray("servers").getJSONObject(0)
             else -> error("نشانی سرور در کانفیگ پیدا نشد")
         }
