@@ -20,6 +20,8 @@ class ShareLinkParserTest {
     fun acceptsValidObfs4BridgeAndRejectsMalformedBridge() {
         val valid = "obfs4 192.0.2.10:443 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"
         assertTrue(ConfigStore.isSupported(valid))
+        val ipv6 = "obfs4 [2001:db8::1]:443 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"
+        assertTrue(ConfigStore.isSupported(ipv6))
         assertFalse(ConfigStore.isSupported("obfs4 192.0.2.10:443 invalid-fingerprint cert=bad iat-mode=0"))
         assertFalse(ConfigStore.isSupported("obfs4 192.0.2.10:99999 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"))
     }
