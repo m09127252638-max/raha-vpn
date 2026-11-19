@@ -34,6 +34,8 @@ class ShareLinkParserTest {
         assertTrue(torrc.contains("UseBridges 1\n"))
         assertTrue(torrc.contains("ClientTransportPlugin obfs4 socks5 127.0.0.1:12345\n"))
         assertTrue(torrc.contains("Bridge $bridge\n"))
+        assertTrue(torrc.contains("SocksPort 0\n"))
+        assertTrue(torrc.contains("SocksPort 127.0.0.1:19050\n"))
         assertTrue(torrc.endsWith("SafeSocks 1\n"))
     }
 
