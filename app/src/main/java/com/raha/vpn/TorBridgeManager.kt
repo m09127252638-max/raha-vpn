@@ -69,7 +69,7 @@ class TorBridgeManager(private val context: Context) {
             "Bridge $bridge",
             "SocksPort 127.0.0.1:9050",
             "SafeSocks 1"
-        ).joinToString("\\n", postfix = "\\n")
+        ).joinToString("\n", postfix = "\n")
 
     private suspend fun awaitTorCircuit() = withTimeout(240_000L) {
         suspendCancellableCoroutine<Unit> { continuation ->
