@@ -153,9 +153,9 @@ object XrayConfigBuilder {
         require(outbounds.length() > 0) { "هیچ خروجی سروری در کانفیگ نیست" }
         val settings = outbounds.getJSONObject(0).getJSONObject("settings")
         val server = when {
-            settings.optJSONArray("vnext")?.length() ?: 0 > 0 ->
+            (settings.optJSONArray("vnext")?.length() ?: 0) > 0 ->
                 settings.getJSONArray("vnext").getJSONObject(0)
-            settings.optJSONArray("servers")?.length() ?: 0 > 0 ->
+            (settings.optJSONArray("servers")?.length() ?: 0) > 0 ->
                 settings.getJSONArray("servers").getJSONObject(0)
             else -> error("نشانی سرور در کانفیگ پیدا نشد")
         }
