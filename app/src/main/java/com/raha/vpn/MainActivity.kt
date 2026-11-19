@@ -139,7 +139,7 @@ fun RahaApp() {
                                 }.onFailure {
                                     message = "ذخیره‌سازی امن انجام نشد؛ دوباره تلاش کن."
                                 }
-                            } else message = "فرمت شناخته نشد. لینک vmess، vless، trojan، ss یا wireguard وارد کن."
+                            } else message = "فرمت لینک پشتیبانی نمی‌شود؛ لینک‌های VLESS، VMess، Trojan، Shadowsocks، WireGuard، Hysteria2 و SOCKS قابل افزودن‌اند."
                         }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("افزودن به سرورها")
                         }
