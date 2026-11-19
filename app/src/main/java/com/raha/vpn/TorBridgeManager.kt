@@ -6,7 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import org.torproject.jni.TorService
-import IPtProxy.Controller
+import go.libXray.LibXray
+import go.libXray.PTController
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
@@ -19,7 +20,7 @@ import kotlin.coroutines.resumeWithException
  * a device-wide Android VPN tunnel.
  */
 class TorBridgeManager(private val context: Context) {
-    private var transportController: Controller? = null
+    private var transportController: PTController? = null
     private var started = false
 
     suspend fun connect(rawBridge: String): String {
@@ -27,17 +28,12 @@ class TorBridgeManager(private val context: Context) {
         disconnect()
 
         val bridge = rawBridge.trim().removePrefix("Bridge ").trim()
-        val controller = Controller(
-            context.noBackupFilesDir.resolve("iptproxy-state").absolutePath,
-            false,
-            false,
-            "ERROR",
-            null
+        val controller = LibXray.newPTController(
+            context.noBackupFilesDir.resolve("iptproxy-state").absolutePath
         )
         transportController = controller
         try {
-            controller.start("obfs4", "")
-            val transportAddress = controller.localAddress("obfs4")
+            val transportAddress = controller.startObfs4()
             require(transportAddress.isNotBlank()) { "موتور obfs4 پورت محلی ایجاد نکرد." }
 
             val torrc = TorService.getTorrc(context)
@@ -55,7 +51,7 @@ class TorBridgeManager(private val context: Context) {
 
     suspend fun disconnect() {
         runCatching { context.stopService(Intent(context, TorService::class.java)) }
-        runCatching { transportController?.stop("obfs4") }
+        runCatching { transportController?.close() }
         transportController = null
         started = false
     }
