@@ -112,7 +112,7 @@ class ConfigStore(context: Context) {
                     }
             }
             val scheme = normalized.substringBefore("://", "").lowercase()
-            return scheme in setOf("vmess", "vless", "trojan", "ss", "wireguard", "wg", "hysteria", "hysteria2", "hy2", "tuic", "anytls", "socks", "socks5", "socks5h", "http", "https")
+            return scheme in setOf("vmess", "vless", "trojan", "ss", "hysteria2", "hy2", "socks", "socks5", "socks5h")
         }
     }
 }
