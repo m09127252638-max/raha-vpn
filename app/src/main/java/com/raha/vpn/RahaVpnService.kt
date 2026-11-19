@@ -212,7 +212,7 @@ class RahaVpnService : VpnService() {
 
     private fun leaveForeground() {
         if (!foregroundActive) return
-        leaveForeground()
+        stopForeground(STOP_FOREGROUND_REMOVE)
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         foregroundActive = false
     }
