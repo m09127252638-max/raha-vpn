@@ -8,7 +8,9 @@ object PublicConfigSearch {
     private val sources = listOf(
         "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
         "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
-        "https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt"
+        "https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt",
+        "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_tested.txt",
+        "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_72h.txt"
     )
 
     fun fetch(): List<String> {
@@ -41,8 +43,15 @@ object PublicConfigSearch {
                         String(Base64.decode(raw.filterNot { it.isWhitespace() }, Base64.DEFAULT), Charsets.UTF_8)
                     }.getOrDefault("")
                     decoded.lineSequence().map { it.trim() }
-                        .filter { it.substringBefore("://").lowercase() in setOf("vless", "vmess", "trojan", "ss", "hysteria", "hysteria2", "hy2", "tuic", "wireguard", "wg", "anytls") }
-                        .filter { ConfigStore.isSupported(it) }
+                        .filter { line ->
+                            if (source.contains("obfs4_", ignoreCase = true)) {
+                                line.startsWith("obfs4 ", ignoreCase = true) &&
+                                    ConfigStore.isSupported(line)
+                            } else {
+                                line.substringBefore("://").lowercase() in setOf("vless", "vmess", "trojan", "ss", "hysteria", "hysteria2", "hy2", "tuic", "wireguard", "wg", "anytls") &&
+                                    ConfigStore.isSupported(line)
+                            }
+                        }
                         .take(500).forEach { found.add(it) }
                 } finally { connection.disconnect() }
             }
