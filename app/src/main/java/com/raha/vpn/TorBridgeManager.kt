@@ -83,6 +83,7 @@ class TorBridgeManager(private val context: Context) {
                     intent.getStringExtra(TorService.EXTRA_STATUS) == TorService.STATUS_OFF &&
                     continuation.isActive
                 ) {
+                    unregister()
                     continuation.resume(Unit)
                 }
             }
@@ -102,7 +103,10 @@ class TorBridgeManager(private val context: Context) {
             }
             continuation.invokeOnCancellation { unregister() }
             val stopped = context.stopService(Intent(context, TorService::class.java))
-            if (!stopped && continuation.isActive) continuation.resume(Unit)
+            if (!stopped && continuation.isActive) {
+                unregister()
+                continuation.resume(Unit)
+            }
         } catch (error: Throwable) {
             unregister()
             if (continuation.isActive) continuation.resumeWithException(error)
@@ -119,18 +123,27 @@ class TorBridgeManager(private val context: Context) {
                     when (intent.action) {
                         TorService.ACTION_STATUS -> {
                             when (intent.getStringExtra(TorService.EXTRA_STATUS)) {
-                                TorService.STATUS_ON -> if (continuation.isActive) continuation.resume(Unit)
+                                TorService.STATUS_ON -> if (continuation.isActive) {
+                                    unregister()
+                                    continuation.resume(Unit)
+                                }
                                 TorService.STATUS_STOPPING, TorService.STATUS_OFF -> {
-                                    if (continuation.isActive) continuation.resumeWithException(
-                                        IllegalStateException("Tor نتوانست مدار امن بسازد.")
-                                    )
+                                    if (continuation.isActive) {
+                                        unregister()
+                                        continuation.resumeWithException(
+                                            IllegalStateException("Tor نتوانست مدار امن بسازد.")
+                                        )
+                                    }
                                 }
                             }
                         }
                         TorService.ACTION_ERROR -> {
-                            if (continuation.isActive) continuation.resumeWithException(
-                                IllegalStateException(intent.getStringExtra(Intent.EXTRA_TEXT) ?: "خطای راه‌اندازی Tor")
-                            )
+                            if (continuation.isActive) {
+                                unregister()
+                                continuation.resumeWithException(
+                                    IllegalStateException(intent.getStringExtra(Intent.EXTRA_TEXT) ?: "خطای راه‌اندازی Tor")
+                                )
+                            }
                         }
                     }
                 }
