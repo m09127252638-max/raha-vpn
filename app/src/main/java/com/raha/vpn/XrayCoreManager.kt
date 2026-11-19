@@ -21,13 +21,13 @@ class XrayCoreManager(context: Context) {
     @Synchronized
     suspend fun start(rawConfig: String, socksPort: Int = DEFAULT_SOCKS_PORT): Int {
         stop()
-        val config = XrayConfigBuilder.build(rawConfig, socksPort)
+        val configJson = XrayConfigBuilder.build(rawConfig, socksPort)
         val executable = File(appContext.applicationInfo.nativeLibraryDir, "libxray.so")
         check(executable.isFile && executable.canExecute()) {
             "موتور Xray در این نسخه نصب نشده است؛ فایل libxray.so موجود نیست."
         }
         val config = File(appContext.noBackupFilesDir, "xray-client.json")
-        config.writeText(config)
+        config.writeText(configJson)
         val output = File(appContext.noBackupFilesDir, "xray-runtime.log")
         configFile = config
         logFile = output
