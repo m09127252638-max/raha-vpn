@@ -38,10 +38,12 @@ jobs:
       - name: Install pinned Android SDK components
         run: |
           sdkmanager "platform-tools" "platforms;android-35" "ndk;28.0.13004108"
+          set +o pipefail
           yes | sdkmanager --licenses
+          set -o pipefail
 
       - name: Build official sing-box libbox for arm64
-        run: ./scripts/build-libbox-android.sh
+        run: bash scripts/build-libbox-android.sh
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
