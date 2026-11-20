@@ -19,7 +19,7 @@ class ConfigStoreValidationTest {
     fun acceptsSupportedProxySchemes() {
         listOf(
             "vless://123e4567-e89b-12d3-a456-426614174000@example.com:443",
-            "vmess://" + android.util.Base64.encodeToString("{\\"add\\":\\"example.com\\",\\"port\\":443,\\"id\\":\\"123e4567-e89b-12d3-a456-426614174000\\"}".toByteArray(), android.util.Base64.NO_WRAP),
+            "vmess://" + android.util.Base64.encodeToString("""{"add":"example.com","port":443,"id":"123e4567-e89b-12d3-a456-426614174000"}""".toByteArray(), android.util.Base64.NO_WRAP),
             "trojan://password@example.com:443",
             "hysteria2://password@example.com:443"
         ).forEach { assertTrue("Expected supported scheme: $it", ConfigStore.isSupported(it)) }
