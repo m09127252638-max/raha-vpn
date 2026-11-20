@@ -114,7 +114,7 @@ object SingBoxConfigBuilder {
         val uri = Uri.parse(link)
         val host = uri.host?.takeIf { it.isNotBlank() } ?: error("آدرس سرور Hysteria2 وجود ندارد")
         val port = uri.port.takeIf { it in 1..65535 } ?: error("پورت Hysteria2 معتبر نیست")
-        val password = uri.userInfo?.let(Uri::decode)?.takeIf { it.isNotBlank() }
+        val password = uri.userInfo?.let { Uri.decode(it) }?.takeIf { it.isNotBlank() }
             ?: error("گذرواژه Hysteria2 وجود ندارد")
         val query = queryParameters(uri)
         val tls = JSONObject().put("enabled", true)
