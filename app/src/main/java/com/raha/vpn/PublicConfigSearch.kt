@@ -107,6 +107,25 @@ object PublicConfigSearch {
         return decoded.takeIf(::containsSupportedUri)
     }
 
+    /**
+     * Import a user-provided HTTPS subscription URL. HTTP is intentionally rejected
+     * to avoid sending subscription contents over an unencrypted connection.
+     */
+    fun fetchSubscription(subscriptionUrl: String): List<String> {
+        require(subscriptionUrl.length <= 2048) { "Subscription URL is too long" }
+        val parsed = URL(subscriptionUrl.trim())
+        require(parsed.protocol.equals("https", ignoreCase = true)) {
+            "Only HTTPS subscription URLs are accepted"
+        }
+        require(parsed.host.isNotBlank() && parsed.userInfo == null) {
+            "Invalid subscription URL"
+        }
+        require(!parsed.host.equals("localhost", ignoreCase = true)) {
+            "Local subscription URLs are not accepted"
+        }
+        return fetchSource(parsed.toString())
+    }
+
     internal fun prioritizeResults(resultsBySource: List<List<String>>): List<String> {
         val all = resultsBySource.flatten().distinct()
         // Bridge feeds occur after large proxy feeds. Put a small bridge sample first
@@ -124,6 +143,7 @@ object PublicConfigSearch {
             setRequestProperty("User-Agent", "H-MAGHSODI-Android")
         }
         try {
+            if (!connection.url.protocol.equals("https", ignoreCase = true)) return emptyList()
             if (connection.responseCode !in 200..299) return emptyList()
             val bytes = connection.inputStream.use { input ->
                 val output = java.io.ByteArrayOutputStream()
