@@ -18,8 +18,8 @@ class ConfigStoreValidationTest {
     @Test
     fun acceptsSupportedProxySchemes() {
         listOf(
-            "vless://id@example.com:443",
-            "vmess://eyJhZGQiOiJleGFtcGxlLmNvbSJ9",
+            "vless://123e4567-e89b-12d3-a456-426614174000@example.com:443",
+            "vmess://" + android.util.Base64.encodeToString("{\\"add\\":\\"example.com\\",\\"port\\":443,\\"id\\":\\"123e4567-e89b-12d3-a456-426614174000\\"}".toByteArray(), android.util.Base64.NO_WRAP),
             "trojan://password@example.com:443",
             "hysteria2://password@example.com:443"
         ).forEach { assertTrue("Expected supported scheme: $it", ConfigStore.isSupported(it)) }
@@ -40,6 +40,15 @@ class ConfigStoreValidationTest {
     }
 
     @Test
+    @Test
+    fun rejectsKnownSchemesWithUnusableShareLinks() {
+        assertFalse(ConfigStore.isSupported("vless://not-a-uuid@example.com:443"))
+        assertFalse(ConfigStore.isSupported("vless://123e4567-e89b-12d3-a456-426614174000@example.com"))
+        assertFalse(ConfigStore.isSupported("vmess://eyJhZGQiOiJleGFtcGxlLmNvbSJ9"))
+        assertFalse(ConfigStore.isSupported("trojan://@example.com:443"))
+        assertFalse(ConfigStore.isSupported("hysteria2://password@example.com"))
+    }
+
     fun rejectsUnknownAndMalformedSchemes() {
         assertFalse(ConfigStore.isSupported("ftp://example.com/file"))
         assertFalse(ConfigStore.isSupported("not-a-config"))
