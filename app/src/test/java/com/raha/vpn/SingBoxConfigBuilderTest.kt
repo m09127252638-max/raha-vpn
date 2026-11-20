@@ -45,6 +45,6 @@ class SingBoxConfigBuilderTest {
         assertEquals("vmess", outbound.getString("type"))
         assertEquals("vmess.example.net", outbound.getString("server"))
         assertEquals("auto", outbound.getString("security"))
-        assertEquals("tls", outbound.getJSONObject("tls").getString("server_name").let { "tls" })
+        assertEquals("vmess.example.net", outbound.getJSONObject("tls").getString("server_name"))
     }
 }
