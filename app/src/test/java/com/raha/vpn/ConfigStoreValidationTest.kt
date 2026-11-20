@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -161,6 +162,22 @@ class ConfigStoreValidationTest {
         }
     }
 
+
+    @Test
+    fun acceptsSuccessfulTorSocksConnectReply() {
+        val reply = byteArrayOf(5, 0, 0, 1, 127, 0, 0, 1, 1, -69)
+        assertTrue(TorBridgeManager.consumeSocks5ConnectReply(ByteArrayInputStream(reply)))
+    }
+
+    @Test
+    fun rejectsFailedOrTruncatedTorSocksConnectReply() {
+        assertFalse(TorBridgeManager.consumeSocks5ConnectReply(
+            ByteArrayInputStream(byteArrayOf(5, 5, 0, 1, 127, 0, 0, 1, 1, -69))
+        ))
+        assertFalse(TorBridgeManager.consumeSocks5ConnectReply(
+            ByteArrayInputStream(byteArrayOf(5, 0, 0, 1, 127, 0))
+        ))
+    }
 
     @Test
     fun parsesCloudflareTraceExitAddress() {
