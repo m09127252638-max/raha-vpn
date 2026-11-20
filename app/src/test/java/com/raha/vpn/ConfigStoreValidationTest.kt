@@ -164,13 +164,13 @@ class ConfigStoreValidationTest {
 
     @Test
     fun parsesCloudflareTraceExitAddress() {
-        assertEquals("203.0.113.7", TunnelConnectivityProbe.parseTraceExitIp("fl=abc\\nip=203.0.113.7\\nts=123"))
-        assertEquals("2001:db8::1", TunnelConnectivityProbe.parseTraceExitIp("ip=2001:db8::1\\ncolo=FRA"))
+        assertEquals("203.0.113.7", TunnelConnectivityProbe.parseTraceExitIp("fl=abc\nip=203.0.113.7\nts=123"))
+        assertEquals("2001:db8::1", TunnelConnectivityProbe.parseTraceExitIp("ip=2001:db8::1\ncolo=FRA"))
     }
 
     @Test
     fun rejectsMissingOrMalformedTraceAddress() {
-        assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("fl=abc\\nts=123"))
+        assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("fl=abc\nts=123"))
         assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=not-an-ip"))
         assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=" + "1".repeat(46)))
     }
