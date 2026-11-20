@@ -109,7 +109,15 @@ fun RahaApp() {
             message = "درخواست اتصال تونل ارسال شد؛ منتظر تأیید موتور هستیم."
         } else {
             vpnConnecting = false
-            message = "مجوز ایجاد تونل VPN داده نشد."
+            if (torConnected) {
+                torConnecting = true
+                coroutineScope.launch {
+                    runCatching { withContext(Dispatchers.IO) { torBridgeManager.disconnect() } }
+                    torConnected = false
+                    torConnecting = false
+                }
+            }
+            message = "مجوز ایجاد تونل VPN داده نشد؛ پل Tor نیز متوقف می‌شود."
         }
     }
 
