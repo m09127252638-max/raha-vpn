@@ -147,7 +147,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(14.dp))
                         val isObfs4Selected = selectedServer?.protocol == "obfs4"
-                        val isSingBoxSupported = selectedServer?.protocol in setOf("vless", "vmess", "trojan", "ss", "shadowsocks")
+                        val isSingBoxSupported = selectedServer?.protocol in setOf("vless", "vmess", "trojan", "ss", "shadowsocks", "hysteria2", "hy2", "tuic")
                         val isAnyConnected = torConnected || vpnConnected
                         Text(
                             when {
@@ -173,7 +173,7 @@ fun RahaApp() {
                                 selectedServer == null -> "یک کانفیگ VLESS، VMess، Trojan، Shadowsocks یا پل obfs4 اضافه کن."
                                 isObfs4Selected -> "اتصال Tor با پل obfs4"
                                 isSingBoxSupported -> "سرور انتخاب‌شده: ${selectedServer?.address}"
-                                else -> "فعلاً VLESS، VMess، Trojan، Shadowsocks و obfs4 قابل اتصال‌اند."
+                                else -> "فعلاً VLESS، VMess، Trojan، Shadowsocks، Hysteria2، TUIC و obfs4 قابل اتصال‌اند."
                             },
                             color = Muted,
                             fontSize = 12.sp
