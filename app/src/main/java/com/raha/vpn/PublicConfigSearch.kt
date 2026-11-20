@@ -16,7 +16,15 @@ object PublicConfigSearch {
         "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_72h.txt",
         // Independently maintained, frequently refreshed public feeds.
         "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt",
-        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt"
+        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt",
+        // Larger, actively refreshed feeds with raw URI lines (not subscription indexes).
+        "https://raw.githubusercontent.com/morpheusadam/v2ray-config/main/subs/bundles/iran.txt",
+        "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/config.txt",
+        // Base64 feed; decoded before scheme validation.
+        "https://raw.githubusercontent.com/3000S-HTTP/sNSub/main/output/best59_base64.txt",
+        // CDN mirrors help when raw.githubusercontent.com is unreachable.
+        "https://cdn.jsdelivr.net/gh/morpheusadam/v2ray-config@main/subs/bundles/iran.txt",
+        "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@main/config.txt"
     )
 
     /**
@@ -28,11 +36,20 @@ object PublicConfigSearch {
         return try {
             val tasks = sources.map { source -> Callable { fetchSource(source) } }
             executor.invokeAll(tasks, 40, TimeUnit.SECONDS)
-                .flatMap { future -> runCatching { future.get() }.getOrDefault(emptyList()) }
-                .distinct()
+                .map { future -> runCatching { future.get() }.getOrDefault(emptyList()) }
+                .let(::prioritizeResults)
         } finally {
             executor.shutdownNow()
         }
+    }
+
+    internal fun prioritizeResults(resultsBySource: List<List<String>>): List<String> {
+        val all = resultsBySource.flatten().distinct()
+        // Bridge feeds occur after large proxy feeds. Put a small bridge sample first
+        // so it is actually visible in the app's first screen of search results.
+        val bridges = all.filter { it.startsWith("obfs4 ", ignoreCase = true) }.take(8)
+        val proxies = all.filterNot { it.startsWith("obfs4 ", ignoreCase = true) }
+        return (bridges + proxies).distinct().take(2_000)
     }
 
     private fun fetchSource(source: String): List<String> {
