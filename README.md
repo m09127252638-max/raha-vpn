@@ -10,6 +10,7 @@
 - دریافت فهرست لینک‌های عمومی V2Ray و پل‌های obfs4 از منابع ثالث
 - اعتبارسنجی پل obfs4 و راه‌اندازی Tor Android با IPtProxy
 - تبدیل لینک‌های VLESS، VMess، Trojan، Shadowsocks، Hysteria2 و TUIC به پیکربندی sing-box
+- واردسازی فایل استاندارد WireGuard با بخش‌های Interface و Peer و تبدیل آن به WireGuard endpoint در sing-box
 - سرویس Android VpnService، ساخت TUN و رابط پلتفرم sing-box
 - رابط شبکه اندروید برای محافظت سوکت‌ها در برابر loop و پایش رابط شبکه پیش‌فرض
 - مسیر اتصال Tor/obfs4 از SOCKS محلی به تونل سراسری sing-box
@@ -27,7 +28,7 @@
 - Hysteria2: لینک‌های hysteria2:// و hy2://، TLS و obfs salamander
 - TUIC: لینک tuic://، TLS، کنترل ازدحام و حالت UDP relay
 - Tor/obfs4: راه‌اندازی پل و عبور ترافیک از SOCKS محلی به تونل sing-box؛ نیازمند تست عملی
-- WireGuard و سایر لینک‌های ذخیره‌شده هنوز به مبدل تونل متصل نشده‌اند.
+- WireGuard: واردسازی فایل متنی استاندارد `.conf` با یک Interface و یک یا چند Peer؛ لینک‌های اشتراکی WireGuard با قالب‌های اختصاصی هنوز پشتیبانی نمی‌شوند.
 
 کانفیگ‌های عمومی ممکن است از کار افتاده یا ناامن باشند؛ آنلاین بودن یا قابل‌اتصال بودن آن‌ها تضمین نمی‌شود. بررسی DNS فقط دسترسی DNS را آزمایش می‌کند و جایگزین VPN نیست.
 
