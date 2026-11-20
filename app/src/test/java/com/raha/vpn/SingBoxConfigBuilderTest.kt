@@ -37,6 +37,21 @@ class SingBoxConfigBuilderTest {
     }
 
     @Test
+    fun buildsTorSocksTunnel() {
+        val config = JSONObject(SingBoxConfigBuilder.buildTorSocks())
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("socks", outbound.getString("type"))
+        assertEquals("127.0.0.1", outbound.getString("server"))
+        assertEquals(19050, outbound.getInt("server_port"))
+        assertEquals("proxy", config.getJSONObject("route").getString("final"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnsupportedProtocolForDeviceTunnel() {
+        SingBoxConfigBuilder.build("ss://YWVzLTI1Ni1nY206cGFzcw==@example.com:8388")
+    }
+
+    @Test
     fun buildsVmessTlsConfig() {
         val payload = """{"v":"2","ps":"vmess-test","add":"vmess.example.net","port":"443","id":"123e4567-e89b-12d3-a456-426614174000","aid":"0","scy":"auto","net":"ws","type":"none","host":"cdn.example.net","path":"/ws","tls":"tls","sni":"vmess.example.net","fp":"chrome"}"""
         val encoded = android.util.Base64.encodeToString(payload.toByteArray(), android.util.Base64.NO_WRAP)
