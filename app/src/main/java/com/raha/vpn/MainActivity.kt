@@ -1,8 +1,17 @@
 package com.raha.vpn
 
+import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,13 +26,14 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,6 +70,46 @@ fun RahaApp() {
     val torBridgeManager = remember(context) { TorBridgeManager(context.applicationContext) }
     var torConnecting by remember { mutableStateOf(false) }
     var torConnected by remember { mutableStateOf(false) }
+    var vpnConnecting by remember { mutableStateOf(false) }
+    var vpnConnected by remember { mutableStateOf(false) }
+    var pendingSingBoxConfig by remember { mutableStateOf<String?>(null) }
+    val vpnPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val config = pendingSingBoxConfig
+        pendingSingBoxConfig = null
+        if (result.resultCode == Activity.RESULT_OK && !config.isNullOrBlank()) {
+            vpnConnecting = true
+            SingBoxVpnService.start(context, config)
+            message = "درخواست اتصال تونل ارسال شد؛ منتظر تأیید موتور هستیم."
+        } else {
+            vpnConnecting = false
+            message = "مجوز ایجاد تونل VPN داده نشد."
+        }
+    }
+
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                vpnConnected = intent?.getBooleanExtra(SingBoxVpnService.EXTRA_CONNECTED, false) == true
+                vpnConnecting = false
+                val error = intent?.getStringExtra(SingBoxVpnService.EXTRA_ERROR)
+                message = if (!error.isNullOrBlank()) error else if (vpnConnected) {
+                    "تونل سراسری VPN برقرار شد."
+                } else {
+                    "اتصال VPN قطع شد."
+                }
+            }
+        }
+        val filter = IntentFilter(SingBoxVpnService.ACTION_STATE)
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
@@ -83,45 +133,110 @@ fun RahaApp() {
                             Icon(Icons.Default.Shield, null, tint = Gold, modifier = Modifier.size(54.dp))
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(if (torConnected) "اتصال Tor برقرار است" else if (torConnecting) "در حال اتصال به پل obfs4..." else "آماده اتصال با پل obfs4", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text(if (torConnected) "پروکسی محلی Tor: socks5://127.0.0.1:19050" else "یک پل obfs4 را از فهرست سرورها انتخاب کن.", color = Muted, fontSize = 12.sp)
+                        val isObfs4Selected = selectedServer?.protocol == "obfs4"
+                        val isAnyConnected = torConnected || vpnConnected
+                        Text(
+                            when {
+                                torConnected -> "اتصال Tor برقرار است"
+                                vpnConnected -> "تونل سراسری VPN فعال است"
+                                torConnecting -> "در حال اتصال به پل obfs4..."
+                                vpnConnecting -> "در حال راه‌اندازی تونل VPN..."
+                                isObfs4Selected -> "آماده اتصال با پل obfs4"
+                                selectedServer != null -> "آماده اتصال با ${selectedServer?.protocol?.uppercase()}"
+                                else -> "ابتدا یک سرور اضافه کن"
+                            },
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            when {
+                                torConnected -> "پروکسی محلی Tor: socks5://127.0.0.1:19050"
+                                vpnConnected -> "ترافیک دستگاه از تونل sing-box عبور می‌کند."
+                                selectedServer == null -> "یک کانفیگ VLESS، VMess یا Trojan اضافه کن."
+                                isObfs4Selected -> "اتصال Tor با پل obfs4"
+                                else -> "سرور انتخاب‌شده: ${selectedServer?.address}"
+                            },
+                            color = Muted,
+                            fontSize = 12.sp
+                        )
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = {
-                                if (torConnected) {
-                                    torConnecting = true
-                                    coroutineScope.launch {
-                                        withContext(Dispatchers.IO) { torBridgeManager.disconnect() }
-                                        torConnected = false
-                                        torConnecting = false
-                                        message = "اتصال Tor قطع شد."
-                                    }
-                                } else {
-                                    val bridge = selectedServer?.takeIf { it.protocol == "obfs4" }?.rawConfig
-                                    if (bridge == null) {
-                                        message = "ابتدا یک پل obfs4 را از فهرست سرورها انتخاب کن."
-                                    } else {
+                                when {
+                                    torConnected -> {
                                         torConnecting = true
                                         coroutineScope.launch {
-                                            try {
-                                                val socks = withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
-                                                torConnected = true
-                                                message = "اتصال به شبکه Tor برقرار شد؛ پروکسی محلی socks5://$socks"
-                                            } catch (error: Throwable) {
-                                                torConnected = false
-                                                message = "اتصال پل ناموفق بود: " + (error.message ?: "خطای ناشناخته")
-                                            } finally {
-                                                torConnecting = false
+                                            withContext(Dispatchers.IO) { torBridgeManager.disconnect() }
+                                            torConnected = false
+                                            torConnecting = false
+                                            message = "اتصال Tor قطع شد."
+                                        }
+                                    }
+                                    vpnConnected -> {
+                                        vpnConnecting = true
+                                        SingBoxVpnService.stop(context)
+                                    }
+                                    isObfs4Selected -> {
+                                        val bridge = selectedServer?.rawConfig
+                                        if (bridge.isNullOrBlank()) {
+                                            message = "ابتدا یک پل obfs4 معتبر انتخاب کن."
+                                        } else {
+                                            torConnecting = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val socks = withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
+                                                    torConnected = true
+                                                    message = "اتصال Tor برقرار شد؛ پروکسی محلی socks5://$socks"
+                                                } catch (error: Throwable) {
+                                                    torConnected = false
+                                                    message = "اتصال پل ناموفق بود: " + (error.message ?: "خطای ناشناخته")
+                                                } finally {
+                                                    torConnecting = false
+                                                }
                                             }
+                                        }
+                                    }
+                                    selectedServer != null -> {
+                                        try {
+                                            val config = SingBoxConfigBuilder.build(selectedServer!!.rawConfig)
+                                            val permissionIntent = VpnService.prepare(context)
+                                            if (permissionIntent == null) {
+                                                vpnConnecting = true
+                                                SingBoxVpnService.start(context, config)
+                                                message = "درخواست اتصال تونل ارسال شد."
+                                            } else {
+                                                pendingSingBoxConfig = config
+                                                vpnPermissionLauncher.launch(permissionIntent)
+                                            }
+                                        } catch (error: Throwable) {
+                                            message = "کانفیگ قابل اجرا نیست: " + (error.message ?: "خطای نامشخص")
                                         }
                                     }
                                 }
                             },
-                            enabled = !torConnecting && (torConnected || selectedServer?.protocol == "obfs4"),
+                            enabled = !torConnecting && !vpnConnecting &&
+                                (isAnyConnected || selectedServer != null),
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (torConnecting) "در حال اتصال..." else if (torConnected) "قطع اتصال Tor" else "اتصال با obfs4") }
-                        Text("این نسخه پروکسی محلی Tor را راه‌اندازی می‌کند؛ هنوز تمام ترافیک گوشی از تونل VPN عبور نمی‌کند.", color = Muted, fontSize = 10.sp)
+                        ) {
+                            Text(
+                                when {
+                                    torConnecting || vpnConnecting -> "در حال اتصال..."
+                                    torConnected || vpnConnected -> "قطع اتصال"
+                                    isObfs4Selected -> "اتصال با obfs4"
+                                    selectedServer != null -> "اتصال VPN سراسری"
+                                    else -> "سروری انتخاب نشده"
+                                }
+                            )
+                        }
+                        Text(
+                            if (isObfs4Selected || torConnected)
+                                "پل obfs4 در حال حاضر پروکسی محلی Tor می‌سازد؛ هنوز تونل سراسری دستگاه نیست."
+                            else
+                                "تونل سراسری فقط پس از تأیید موفق موتور و مجوز اندروید فعال اعلام می‌شود.",
+                            color = Muted,
+                            fontSize = 10.sp
+                        )
                     }
                 }
                 Spacer(Modifier.height(20.dp))
