@@ -74,6 +74,23 @@ class XrayTunConfigTest {
     }
 
     @Test
+    fun skipsBootstrapDnsWhenProxyAddressIsAlreadyAnIpLiteral() {
+        val outboundDocument = JSONObject(
+            XrayConfigBuilder.build(
+                "vless://$uuid@203.0.113.10:443?security=tls&sni=edge.example"
+            )
+        )
+        val root = JSONObject(
+            XrayConfigBuilder.buildTunConfig(outboundDocument, tunFd = 45, torMode = false)
+        )
+        val dnsServers = root.getJSONObject("dns").getJSONArray("servers")
+
+        assertEquals(2, dnsServers.length())
+        assertEquals("https://1.1.1.1/dns-query", dnsServers.getString(0))
+        assertEquals("https://8.8.8.8/dns-query", dnsServers.getString(1))
+    }
+
+    @Test
     fun buildsTorTunConfigWithLocalSocksAndBlocksUdp() {
         val root = JSONObject(
             XrayConfigBuilder.buildTorTunConfig(43, "127.0.0.1:19050")
