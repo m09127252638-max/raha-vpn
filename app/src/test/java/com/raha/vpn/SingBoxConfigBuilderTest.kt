@@ -179,7 +179,7 @@ class SingBoxConfigBuilderTest {
         SingBoxConfigBuilder.build(raw)
     }
 
-    @Test(expected = IllegalStateException::class)
+    @Test(expected = IllegalArgumentException::class)
     fun rejectsDuplicateWireGuardOptions() {
         val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         val raw = """
