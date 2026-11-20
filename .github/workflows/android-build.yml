@@ -40,7 +40,7 @@ jobs:
 
       - name: Install pinned Android NDK
         run: |
-          sdkmanager --install "ndk;29.0.14206865"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "ndk;29.0.14206865"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
 
       - name: Build combined sing-box and obfs4 runtime
