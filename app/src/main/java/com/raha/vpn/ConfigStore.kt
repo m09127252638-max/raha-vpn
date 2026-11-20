@@ -94,9 +94,19 @@ class ConfigStore(context: Context) {
         private const val IV_LENGTH = 12
         private const val TAG_BITS = 128
 
+        internal fun normalizeObfs4Bridge(value: String): String {
+            val withoutBridgePrefix = value.trim()
+                .replaceFirst(Regex("^Bridge\\s+", RegexOption.IGNORE_CASE), "")
+                .trim()
+            return withoutBridgePrefix.replaceFirst(
+                Regex("^obfs4\\s+", RegexOption.IGNORE_CASE),
+                "obfs4 "
+            )
+        }
+
         fun isSupported(value: String): Boolean {
-            val normalized = value.trim().replaceFirst(Regex("^Bridge\\s+", RegexOption.IGNORE_CASE), "").trim()
-            if (normalized.startsWith("obfs4 ", ignoreCase = true)) {
+            val normalized = normalizeObfs4Bridge(value)
+            if (normalized.startsWith("obfs4 ")) {
                 val bridge = normalized.replaceFirst(Regex("^obfs4\\s+", RegexOption.IGNORE_CASE), "").trim()
                 return Regex(
                     """^(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+):[0-9]{1,5} [0-9a-fA-F]{40} cert=[A-Za-z0-9+/]+={0,2} iat-mode=[012]$"""
