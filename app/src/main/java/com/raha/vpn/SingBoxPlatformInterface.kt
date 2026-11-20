@@ -77,12 +77,25 @@ internal class SingBoxPlatformInterface(
 
     override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
         closeDefaultInterfaceMonitor(listener)
+        var currentDefault: Network? = null
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) = publishDefaultNetwork(listener, network)
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) =
+            override fun onAvailable(network: Network) {
+                currentDefault = network
                 publishDefaultNetwork(listener, network)
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (currentDefault == null || currentDefault == network) {
+                    currentDefault = network
+                    publishDefaultNetwork(listener, network)
+                }
+            }
+
             override fun onLost(network: Network) {
-                listener.updateDefaultInterface("", -1, false, false)
+                if (currentDefault == network) {
+                    currentDefault = null
+                    listener.updateDefaultInterface("", -1, false, false)
+                }
             }
         }
         callbacks[listener] = callback
