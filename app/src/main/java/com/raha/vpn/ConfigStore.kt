@@ -106,6 +106,12 @@ class ConfigStore(context: Context) {
 
         fun isSupported(value: String): Boolean {
             val normalized = normalizeObfs4Bridge(value)
+            if (normalized.contains("[Interface]", ignoreCase = true) && normalized.contains("[Peer]", ignoreCase = true)) {
+                return normalized.contains(Regex("(?im)^\\s*PrivateKey\\s*=\\s*[^\\s]+")) &&
+                    normalized.contains(Regex("(?im)^\\s*Address\\s*=\\s*[^\\s]+")) &&
+                    normalized.contains(Regex("(?im)^\\s*PublicKey\\s*=\\s*[^\\s]+")) &&
+                    normalized.contains(Regex("(?im)^\\s*Endpoint\\s*=\\s*[^\\s]+"))
+            }
             if (normalized.startsWith("obfs4 ")) {
                 val bridge = normalized.replaceFirst(Regex("^obfs4\\s+", RegexOption.IGNORE_CASE), "").trim()
                 return Regex(
