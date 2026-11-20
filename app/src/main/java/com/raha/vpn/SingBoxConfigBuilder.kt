@@ -154,7 +154,11 @@ object SingBoxConfigBuilder {
             val endpointText = peer["endpoint"]?.takeIf { it.isNotBlank() }
                 ?: error("Endpoint یکی از Peerها وجود ندارد")
             val endpointUri = Uri.parse("udp://$endpointText")
-            val host = endpointUri.host?.takeIf { it.isNotBlank() }
+            require(endpointUri.userInfo == null && endpointUri.path.isNullOrEmpty() &&
+                endpointUri.query == null && endpointUri.fragment == null) {
+                "Endpoint در WireGuard فقط باید شامل میزبان و پورت باشد"
+            }
+            val host = endpointUri.host?.removePrefix("[")?.removeSuffix("]")?.takeIf { it.isNotBlank() }
                 ?: error("آدرس Endpoint در WireGuard معتبر نیست")
             val port = endpointUri.port.takeIf { it in 1..65535 }
                 ?: error("پورت Endpoint در WireGuard معتبر نیست")
