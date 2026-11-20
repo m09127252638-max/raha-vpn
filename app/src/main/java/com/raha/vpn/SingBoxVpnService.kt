@@ -150,14 +150,18 @@ class SingBoxVpnService : VpnService() {
         val builder = Builder().setSession("H.MAGHSODI").setMtu(options.mtu)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
         val ipv4 = options.inet4Address
+        var hasIpv4Address = false
         while (ipv4.hasNext()) {
             val prefix = ipv4.next()
             builder.addAddress(prefix.address(), prefix.prefix())
+            hasIpv4Address = true
         }
         val ipv6 = options.inet6Address
+        var hasIpv6Address = false
         while (ipv6.hasNext()) {
             val prefix = ipv6.next()
             builder.addAddress(prefix.address(), prefix.prefix())
+            hasIpv6Address = true
         }
         if (options.autoRoute) {
             if (options.dnsMode.value != Libbox.DNSModeDisabled) {
@@ -172,7 +176,7 @@ class SingBoxVpnService : VpnService() {
                         val route = ipv4Routes.next()
                         builder.addRoute(IpPrefix(InetAddress.getByName(route.address()), route.prefix()))
                     }
-                } else if (options.inet4Address.hasNext()) {
+                } else if (hasIpv4Address) {
                     builder.addRoute("0.0.0.0", 0)
                 }
 
@@ -182,7 +186,7 @@ class SingBoxVpnService : VpnService() {
                         val route = ipv6Routes.next()
                         builder.addRoute(IpPrefix(InetAddress.getByName(route.address()), route.prefix()))
                     }
-                } else if (options.inet6Address.hasNext()) {
+                } else if (hasIpv6Address) {
                     builder.addRoute("::", 0)
                 }
 
@@ -207,7 +211,7 @@ class SingBoxVpnService : VpnService() {
                 // Older Android versions do not expose excludeRoute(). If sing-box
                 // supplies no explicit ranges, still install the default route so
                 // the TUN does not come up without carrying IPv4 traffic.
-                if (!hasIpv4Route && options.inet4Address.hasNext()) {
+                if (!hasIpv4Route && hasIpv4Address) {
                     builder.addRoute("0.0.0.0", 0)
                 }
 
@@ -218,7 +222,7 @@ class SingBoxVpnService : VpnService() {
                     builder.addRoute(route.address(), route.prefix())
                     hasIpv6Route = true
                 }
-                if (!hasIpv6Route && options.inet6Address.hasNext()) {
+                if (!hasIpv6Route && hasIpv6Address) {
                     builder.addRoute("::", 0)
                 }
             }
