@@ -129,6 +129,42 @@ class SingBoxConfigBuilderTest {
         assertEquals("wg-ep", config.getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("detour"))
     }
 
+    @Test
+    fun buildsWireGuardIpv6PeerEndpoint() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            Address = fd00::2/128
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = [2001:db8::10]:51820
+            AllowedIPs = ::/0
+        """.trimIndent()
+        val config = JSONObject(SingBoxConfigBuilder.build(raw))
+        val peer = config.getJSONArray("endpoints").getJSONObject(0)
+            .getJSONArray("peers").getJSONObject(0)
+        assertEquals("2001:db8::10", peer.getString("address"))
+        assertEquals(51820, peer.getInt("port"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsWireGuardEndpointWithPath() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            Address = 10.66.0.2/32
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = wg.example.net:51820/path
+            AllowedIPs = 0.0.0.0/0
+        """.trimIndent()
+        SingBoxConfigBuilder.build(raw)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun rejectsNonNumericWireGuardMtu() {
         val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
