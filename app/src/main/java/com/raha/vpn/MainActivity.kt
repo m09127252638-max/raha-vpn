@@ -286,7 +286,7 @@ fun RahaApp() {
                         Text("افزودن کانفیگ", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text("لینک سرور یا خط کامل obfs4 را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
-                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless://، vmess://، trojan://، ss://، hysteria2:// یا obfs4 ...") }, minLines = 4)
+                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("برای اتصال: vless://، trojan:// یا obfs4 ...") }, minLines = 4)
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
                             val entries = configText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
