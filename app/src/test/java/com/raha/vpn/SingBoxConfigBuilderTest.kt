@@ -74,7 +74,7 @@ class SingBoxConfigBuilderTest {
 
     @Test(expected = IllegalStateException::class)
     fun rejectsUnsupportedProtocolForDeviceTunnel() {
-        SingBoxConfigBuilder.build("ss://YWVzLTI1Ni1nY206cGFzcw==@example.com:8388")
+        SingBoxConfigBuilder.build("wireguard://not-supported")
     }
 
     @Test
