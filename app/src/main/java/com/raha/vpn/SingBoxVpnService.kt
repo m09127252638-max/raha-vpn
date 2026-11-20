@@ -180,7 +180,7 @@ class SingBoxVpnService : VpnService() {
                 if (ipv6Routes.hasNext()) {
                     while (ipv6Routes.hasNext()) {
                         val route = ipv6Routes.next()
-                        builder.addRoute(IpPrefix(route.address(), route.prefix()))
+                        builder.addRoute(IpPrefix(InetAddress.getByName(route.address()), route.prefix()))
                     }
                 } else if (options.inet6Address.hasNext()) {
                     builder.addRoute("::", 0)
@@ -189,12 +189,12 @@ class SingBoxVpnService : VpnService() {
                 val ipv4Excludes = options.inet4RouteExcludeAddress
                 while (ipv4Excludes.hasNext()) {
                     val route = ipv4Excludes.next()
-                    builder.excludeRoute(IpPrefix(route.address(), route.prefix()))
+                    builder.excludeRoute(IpPrefix(InetAddress.getByName(route.address()), route.prefix()))
                 }
                 val ipv6Excludes = options.inet6RouteExcludeAddress
                 while (ipv6Excludes.hasNext()) {
                     val route = ipv6Excludes.next()
-                    builder.excludeRoute(IpPrefix(route.address(), route.prefix()))
+                    builder.excludeRoute(IpPrefix(InetAddress.getByName(route.address()), route.prefix()))
                 }
             } else {
                 val ipv4Routes = options.inet4RouteRange
