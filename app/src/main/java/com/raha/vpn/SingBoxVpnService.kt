@@ -89,12 +89,14 @@ class SingBoxVpnService : VpnService() {
                 basePath = base.absolutePath
                 workingPath = getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
                 tempPath = cacheDir.absolutePath
+                fixAndroidStack = true
                 logMaxLines = 500
                 debug = false
+                crashReportSource = "H.MAGHSODI"
                 appVersion = BuildConfig.VERSION_CODE.toString()
                 appMarketingVersion = BuildConfig.VERSION_NAME
             }
-            Libbox.setup(setup)
+            LibboxRuntimeSetup.ensure(setup)
             val platform = createPlatformInterface()
             val handler = object : CommandServerHandler {
                 override fun serviceStop() {
@@ -221,5 +223,17 @@ class SingBoxVpnService : VpnService() {
         fun stop(context: Context) {
             context.startService(Intent(context, SingBoxVpnService::class.java).setAction(ACTION_STOP))
         }
+    }
+}
+
+
+private object LibboxRuntimeSetup {
+    @Volatile private var initialized = false
+
+    @Synchronized
+    fun ensure(options: SetupOptions) {
+        if (initialized) return
+        Libbox.setup(options)
+        initialized = true
     }
 }
