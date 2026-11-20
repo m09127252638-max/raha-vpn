@@ -37,8 +37,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    // Official sing-box Android binding; next step wires its PlatformInterface to VpnService.
-    implementation("com.github.singbox-android:libbox:1.14.0")
     implementation("com.netzarchitekten:IPtProxy:5.7.0")
     implementation("info.guardianproject:tor-android:0.4.8.17.2")
     testImplementation("junit:junit:4.13.2")
