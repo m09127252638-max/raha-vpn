@@ -45,7 +45,7 @@ private val Gold = Color(0xFFFFC857)
 private val Muted = Color(0xFF9BAFC5)
 
 data class Server(val name: String, val address: String, val protocol: String, val rawConfig: String) {
-    val connectable: Boolean get() = protocol in setOf("vless", "trojan", "obfs4")
+    val connectable: Boolean get() = protocol in setOf("vless", "vmess", "trojan", "obfs4")
 }
 private data class PendingVpnRequest(val rawConfig: String, val bridge: String?, val protocol: String)
 
