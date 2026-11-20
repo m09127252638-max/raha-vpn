@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: android-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -42,6 +42,17 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "ndk;29.0.14206865"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Cache Go build and module data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/go/bin
+          key: android-go-${{ runner.os }}-go1.27.4-singbox1.14.4-iptproxy5.8.1-v1
+          restore-keys: |
+            android-go-${{ runner.os }}-go1.27.4-
 
       - name: Build combined sing-box and obfs4 runtime
         env:
