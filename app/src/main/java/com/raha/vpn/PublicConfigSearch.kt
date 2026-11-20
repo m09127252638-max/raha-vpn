@@ -46,6 +46,69 @@ object PublicConfigSearch {
         }
     }
 
+
+    /**
+     * Parse both URI-per-line feeds and Base64 subscription bodies. Comment lines
+     * are removed before format detection, so a URL in a comment cannot prevent
+     * decoding a Base64 payload. This validates importability, not reachability.
+     */
+    internal fun parseFeedPayload(payload: String, bridgeFeed: Boolean = false): List<String> {
+        val cleaned = payload.removePrefix("\\uFEFF")
+            .lineSequence()
+            .map(String::trim)
+            .filter { line ->
+                line.isNotEmpty() &&
+                    !line.startsWith("#") &&
+                    !line.startsWith(";") &&
+                    !line.startsWith("//")
+            }
+            .toList()
+            .joinToString("\\n")
+
+        val decoded = if (bridgeFeed || containsSupportedUri(cleaned)) {
+            cleaned
+        } else {
+            decodeBase64Subscription(cleaned) ?: cleaned
+        }
+
+        val allowedSchemes = setOf("vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "tuic")
+        return decoded.lineSequence()
+            .map(String::trim)
+            .filter { line ->
+                if (bridgeFeed) {
+                    line.startsWith("obfs4 ", ignoreCase = true) &&
+                        ConfigStore.isSupported(line)
+                } else {
+                    line.substringBefore("://").lowercase() in allowedSchemes &&
+                        ConfigStore.isSupported(line)
+                }
+            }
+            .distinct()
+            .take(500)
+            .toList()
+    }
+
+    private fun containsSupportedUri(value: String): Boolean =
+        value.lineSequence().any { line ->
+            line.substringBefore("://").lowercase() in
+                setOf("vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "tuic") &&
+                line.contains("://")
+        }
+
+    private fun decodeBase64Subscription(value: String): String? {
+        val compact = value.filterNot(Char::isWhitespace)
+        if (compact.length < 16 || !compact.matches(Regex("[A-Za-z0-9_+/=-]+"))) return null
+        val decoded = runCatching {
+            String(
+                Base64.decode(compact, Base64.DEFAULT or Base64.URL_SAFE),
+                Charsets.UTF_8
+            )
+        }.getOrNull() ?: return null
+        // Reject arbitrary binary or unrelated text; only accept a decoded body
+        // containing at least one supported share URI.
+        return decoded.takeIf(::containsSupportedUri)
+    }
+
     internal fun prioritizeResults(resultsBySource: List<List<String>>): List<String> {
         val all = resultsBySource.flatten().distinct()
         // Bridge feeds occur after large proxy feeds. Put a small bridge sample first
@@ -78,23 +141,7 @@ object PublicConfigSearch {
                 output.toByteArray()
             }
             val raw = bytes.toString(Charsets.UTF_8)
-            val isBridgeFeed = source.contains("obfs4_", ignoreCase = true)
-            val decoded = if (isBridgeFeed || raw.contains("://")) raw else runCatching {
-                String(Base64.decode(raw.filterNot { it.isWhitespace() }, Base64.DEFAULT), Charsets.UTF_8)
-            }.getOrDefault("")
-            val allowedSchemes = setOf("vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "tuic")
-            return decoded.lineSequence()
-                .map(String::trim)
-                .filter { line ->
-                    if (isBridgeFeed) {
-                        line.startsWith("obfs4 ", ignoreCase = true) && ConfigStore.isSupported(line)
-                    } else {
-                        line.substringBefore("://").lowercase() in allowedSchemes &&
-                            ConfigStore.isSupported(line)
-                    }
-                }
-                .take(500)
-                .toList()
+            return parseFeedPayload(raw, source.contains("obfs4_", ignoreCase = true))
         } finally {
             connection.disconnect()
         }
