@@ -96,7 +96,9 @@ class RahaVpnService : VpnService() {
         val outboundDocument = if (torMode) {
             null
         } else {
-            val source = xrayCore.convertShareLinksToXrayJson(rawConfig.orEmpty())
+            // Use the same strict, locally tested parser as public discovery so a server
+            // is never shown as usable by one parser and rejected by another at connect time.
+            val source = org.json.JSONObject(XrayConfigBuilder.build(rawConfig.orEmpty()))
             val hostname = XrayConfigBuilder.outboundServerAddress(source)
             val resolved = resolveServerAddress(hostname)
             XrayConfigBuilder.withResolvedServerAddress(source, resolved)
