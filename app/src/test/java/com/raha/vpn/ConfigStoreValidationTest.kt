@@ -120,4 +120,45 @@ class ConfigStoreValidationTest {
         assertEquals(listOf(validObfs4), PublicConfigSearch.parseFeedPayload(validObfs4, bridgeFeed = true))
         assertTrue(PublicConfigSearch.parseFeedPayload(validObfs4).isEmpty())
     }
+    @Test
+    fun parsesUrlSafeUnpaddedBase64AndNormalizesBridgePrefix() {
+        val config = "vless://123e4567-e89b-12d3-a456-426614174000@example.net:443"
+        val encoded = android.util.Base64.encodeToString(
+            config.toByteArray(),
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+        )
+        assertEquals(listOf(config), PublicConfigSearch.parseFeedPayload(encoded))
+
+        assertEquals(
+            listOf(validObfs4),
+            PublicConfigSearch.parseFeedPayload("Bridge $validObfs4", bridgeFeed = true)
+        )
+    }
+
+    @Test
+    fun reportsDuplicatesUnsupportedAndMalformedRowsSeparately() {
+        val valid = "trojan://secret@example.net:443"
+        val oversized = "vless://" + "x".repeat(64 * 1024)
+        val report = PublicConfigSearch.parseFeedPayloadWithReport(
+            listOf(valid, valid, "unsupported://example.net:443", oversized).joinToString("\\n")
+        )
+
+        assertEquals(listOf(valid), report.configs)
+        assertEquals(1, report.accepted)
+        assertEquals(1, report.duplicates)
+        assertEquals(1, report.unsupported)
+        assertEquals(1, report.malformed)
+    }
+
+    @Test
+    fun rejectsSubscriptionPayloadLargerThanEightMib() {
+        val oversizedPayload = "x".repeat(8 * 1024 * 1024 + 1)
+        try {
+            PublicConfigSearch.parseFeedPayload(oversizedPayload)
+            throw AssertionError("Oversized subscription should be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message.orEmpty().contains("8 MiB"))
+        }
+    }
+
 }
