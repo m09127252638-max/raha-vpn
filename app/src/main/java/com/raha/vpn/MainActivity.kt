@@ -65,6 +65,8 @@ fun RahaApp() {
     var selectedServer by remember { mutableStateOf(savedServers.firstOrNull { it.protocol == "obfs4" } ?: savedServers.firstOrNull()) }
     var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
     var dnsChecking by remember { mutableStateOf(false) }
+    var tunnelProbeRunning by remember { mutableStateOf(false) }
+    var tunnelProbeResult by remember { mutableStateOf<TunnelProbeResult?>(null) }
     var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
     var configSearching by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -315,6 +317,41 @@ fun RahaApp() {
                             color = Muted,
                             fontSize = 10.sp
                         )
+                        if (vpnConnected) {
+                            Spacer(Modifier.height(10.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    if (!tunnelProbeRunning) {
+                                        tunnelProbeRunning = true
+                                        coroutineScope.launch {
+                                            try {
+                                                tunnelProbeResult = withContext(Dispatchers.IO) {
+                                                    TunnelConnectivityProbe.check(context)
+                                                }
+                                                message = tunnelProbeResult?.detail.orEmpty()
+                                            } catch (cancelled: CancellationException) {
+                                                throw cancelled
+                                            } catch (error: Exception) {
+                                                message = "آزمایش اتصال ناموفق بود: ${error.message ?: "خطای شبکه"}"
+                                            } finally {
+                                                tunnelProbeRunning = false
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = !tunnelProbeRunning,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(if (tunnelProbeRunning) "در حال آزمایش ترافیک..." else "آزمایش عبور واقعی اینترنت")
+                            }
+                            tunnelProbeResult?.let { probe ->
+                                Text(
+                                    probe.detail + (probe.latencyMs?.let { " • ${it} ms" } ?: ""),
+                                    color = if (probe.success) Gold else Muted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(Modifier.height(20.dp))
