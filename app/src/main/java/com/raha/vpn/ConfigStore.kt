@@ -110,10 +110,7 @@ class ConfigStore(context: Context) {
             if (value.length > MAX_CONFIG_CHARS) return false
             val normalized = normalizeObfs4Bridge(value)
             if (normalized.contains("[Interface]", ignoreCase = true) && normalized.contains("[Peer]", ignoreCase = true)) {
-                return normalized.contains(Regex("(?im)^\\s*PrivateKey\\s*=\\s*[^\\s]+")) &&
-                    normalized.contains(Regex("(?im)^\\s*Address\\s*=\\s*[^\\s]+")) &&
-                    normalized.contains(Regex("(?im)^\\s*PublicKey\\s*=\\s*[^\\s]+")) &&
-                    normalized.contains(Regex("(?im)^\\s*Endpoint\\s*=\\s*[^\\s]+"))
+                return runCatching { SingBoxConfigBuilder.build(normalized); true }.getOrDefault(false)
             }
             if (normalized.startsWith("obfs4 ")) {
                 val bridge = normalized.replaceFirst(Regex("^obfs4\\s+", RegexOption.IGNORE_CASE), "").trim()
@@ -131,7 +128,9 @@ class ConfigStore(context: Context) {
                     }
             }
             val scheme = normalized.substringBefore("://", "").lowercase()
-            return scheme in setOf("vmess", "vless", "trojan", "ss", "hysteria2", "hy2", "tuic")
+            if (scheme !in setOf("vmess", "vless", "trojan", "ss", "hysteria2", "hy2", "tuic")) return false
+            // Reject known schemes when the actual tunnel builder cannot parse the link.
+            return runCatching { SingBoxConfigBuilder.build(normalized); true }.getOrDefault(false)
         }
     }
 }
