@@ -39,6 +39,7 @@ internal class SingBoxPlatformInterface(
 ) : PlatformInterface {
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
     private val callbacks = ConcurrentHashMap<InterfaceUpdateListener, ConnectivityManager.NetworkCallback>()
+    private val ownInterfaces = ConcurrentHashMap.newKeySet<String>()
 
     override fun localDNSTransport(): LocalDNSTransport? = null
 
@@ -97,6 +98,7 @@ internal class SingBoxPlatformInterface(
     private fun publishDefaultNetwork(listener: InterfaceUpdateListener, network: Network) {
         val properties = connectivity.getLinkProperties(network) ?: return
         val name = properties.interfaceName ?: return
+        if (name in ownInterfaces) return
         val nativeInterface = runCatching { JavaNetworkInterface.getByName(name) }.getOrNull()
         val capabilities = connectivity.getNetworkCapabilities(network)
         val metered = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) != true
@@ -114,6 +116,7 @@ internal class SingBoxPlatformInterface(
             val properties = connectivity.getLinkProperties(network) ?: continue
             val capabilities = connectivity.getNetworkCapabilities(network) ?: continue
             val name = properties.interfaceName ?: continue
+            if (name in ownInterfaces) continue
             val native = nativeInterfaces.firstOrNull { it.name == name } ?: continue
             val item = io.nekohasekai.libbox.NetworkInterface().apply {
                 this.name = name
@@ -165,7 +168,9 @@ internal class SingBoxPlatformInterface(
     override fun cancelNotification(identifier: String, typeID: Int) = Unit
     override fun startNeighborMonitor(listener: NeighborUpdateListener) = Unit
     override fun closeNeighborMonitor(listener: NeighborUpdateListener) = Unit
-    override fun registerMyInterface(name: String) = Unit
+    override fun registerMyInterface(name: String) {
+        ownInterfaces.add(name)
+    }
     override fun usePlatformShell(): Boolean = false
     override fun checkPlatformShell() {
         error("Platform shell is not available in this app")
