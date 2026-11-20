@@ -125,7 +125,7 @@ object SingBoxConfigBuilder {
                     require(!sections.containsKey("interface")) { "فایل WireGuard فقط باید یک بخش Interface داشته باشد" }
                     current = linkedMapOf<String, String>().also { sections[section] = it }
                 } else {
-                    val key = "peer-\${sections.keys.count { it.startsWith("peer-") } + 1}"
+                    val key = "peer-${sections.keys.count { it.startsWith("peer-") } + 1}"
                     current = linkedMapOf<String, String>().also { sections[key] = it }
                 }
             } else {
@@ -178,7 +178,7 @@ object SingBoxConfigBuilder {
             .put("address", JSONArray(addresses))
             .put("private_key", privateKey)
             .put("peers", peerArray)
-        return tunnelConfig(JSONObject().put("type", "direct").put("tag", "direct"), JSONArray().put(endpoint), "wg-ep")
+        return tunnelConfig(JSONObject().put("type", "direct").put("tag", "wg-placeholder"), JSONArray().put(endpoint), "wg-ep")
     }
 
     private fun validWireGuardKey(value: String): Boolean = runCatching {
