@@ -172,7 +172,8 @@ class ConfigStoreValidationTest {
         assertTrue(torrc.contains("Bridge $bridge"))
         assertTrue(torrc.contains("SocksPort 127.0.0.1:19050"))
         assertTrue(torrc.contains("SafeSocks 1"))
-        assertFalse(torrc.contains("SocksPort 0\nSocksPort 0"))
+        assertEquals(1, Regex("(?m)^SocksPort 0$").findAll(torrc).count())
+        assertFalse(torrc.contains("SocksPort 0.0.0.0"))
     }
 
     @Test
