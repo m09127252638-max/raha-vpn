@@ -112,7 +112,18 @@ class ConfigStore(context: Context) {
                     }
             }
             val scheme = normalized.substringBefore("://", "").lowercase()
-            return scheme in setOf("vmess", "vless", "trojan", "ss", "socks", "socks5", "socks5h", "hysteria2", "hy2")
+            return when (scheme) {
+                // These protocols are connectable in the current UI. Validate them
+                // with the exact parser used at connection time so malformed links
+                // never enable the Connect button.
+                "vless", "trojan" -> runCatching {
+                    XrayConfigBuilder.build(normalized)
+                    true
+                }.getOrDefault(false)
+                // Retain other importable schemes for display, but the UI marks
+                // protocols without a complete connection path as non-connectable.
+                else -> scheme in setOf("vmess", "ss", "socks", "socks5", "socks5h", "hysteria2", "hy2")
+            }
         }
     }
 }
