@@ -6,7 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import org.torproject.jni.TorService
-import IPtProxy.Controller
+import io.nekohasekai.IPtProxy.Controller
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
