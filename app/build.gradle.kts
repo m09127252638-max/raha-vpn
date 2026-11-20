@@ -37,7 +37,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    // One combined gomobile AAR avoids duplicate go.Seq/JNI runtime classes.\n    implementation(files("libs/combined-go.aar"))
+    // One combined gomobile AAR avoids duplicate go.Seq/JNI runtime classes.
+    implementation(files("libs/combined-go.aar"))
     implementation("info.guardianproject:tor-android:0.4.8.17.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
