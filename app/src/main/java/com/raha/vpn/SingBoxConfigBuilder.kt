@@ -1,5 +1,7 @@
 package com.raha.vpn
 
+import android.net.Uri
+import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -9,6 +11,8 @@ import org.json.JSONObject
  */
 object SingBoxConfigBuilder {
     fun build(raw: String): String {
+        val normalized = raw.trim()
+        if (normalized.startsWith("ss://", true)) return buildShadowsocks(normalized)
         val xray = JSONObject(XrayConfigBuilder.build(raw))
         val xrayOutbound = xray.getJSONArray("outbounds").getJSONObject(0)
         val protocol = xrayOutbound.getString("protocol")
@@ -101,6 +105,66 @@ object SingBoxConfigBuilder {
 
         outbound.put("domain_resolver", "local-dns")
         return tunnelConfig(outbound)
+    }
+
+    private fun buildShadowsocks(link: String): String {
+        val uri = Uri.parse(link)
+        require(uri.getQueryParameter("plugin").isNullOrBlank()) {
+            "پلاگین جانبی Shadowsocks هنوز پشتیبانی نمی‌شود"
+        }
+        val encoded = link.substringAfter("ss://").substringBefore('#').substringBefore('?')
+        val methodAndPassword: String
+        val host: String
+        val port: Int
+
+        if (encoded.contains('@')) {
+            val userInfo = encoded.substringBefore('@')
+            val serverPart = encoded.substringAfter('@')
+            methodAndPassword = decodeBase64(userInfo)
+            val serverUri = Uri.parse("ss://$serverPart")
+            host = serverUri.host?.takeIf { it.isNotBlank() } ?: error("آدرس Shadowsocks وجود ندارد")
+            port = serverUri.port.takeIf { it in 1..65535 } ?: error("پورت Shadowsocks معتبر نیست")
+        } else {
+            val decoded = decodeBase64(encoded)
+            val separator = decoded.lastIndexOf('@')
+            require(separator > 0 && separator < decoded.lastIndex) {
+                "ساختار لینک Shadowsocks معتبر نیست"
+            }
+            methodAndPassword = decoded.substring(0, separator)
+            val serverUri = Uri.parse("ss://" + decoded.substring(separator + 1))
+            host = serverUri.host?.takeIf { it.isNotBlank() } ?: error("آدرس Shadowsocks وجود ندارد")
+            port = serverUri.port.takeIf { it in 1..65535 } ?: error("پورت Shadowsocks معتبر نیست")
+        }
+
+        val credentialSeparator = methodAndPassword.indexOf(':')
+        require(credentialSeparator > 0 && credentialSeparator < methodAndPassword.lastIndex) {
+            "روش رمزنگاری یا گذرواژه Shadowsocks ناقص است"
+        }
+        val method = methodAndPassword.substring(0, credentialSeparator)
+        val password = methodAndPassword.substring(credentialSeparator + 1)
+        require(method.isNotBlank() && password.isNotBlank()) {
+            "روش رمزنگاری یا گذرواژه Shadowsocks خالی است"
+        }
+
+        val outbound = JSONObject()
+            .put("type", "shadowsocks")
+            .put("tag", "proxy")
+            .put("server", host)
+            .put("server_port", port)
+            .put("method", method)
+            .put("password", password)
+            .put("domain_resolver", "local-dns")
+        return tunnelConfig(outbound)
+    }
+
+    private fun decodeBase64(value: String): String {
+        val normalized = value.replace('-', '+').replace('_', '/')
+        val padded = normalized + "=".repeat((4 - normalized.length % 4) % 4)
+        return runCatching {
+            String(Base64.decode(padded, Base64.DEFAULT), Charsets.UTF_8)
+        }.getOrElse {
+            String(Base64.decode(padded, Base64.URL_SAFE or Base64.NO_WRAP), Charsets.UTF_8)
+        }
     }
 
     fun buildTorSocks(port: Int = 19050): String {
