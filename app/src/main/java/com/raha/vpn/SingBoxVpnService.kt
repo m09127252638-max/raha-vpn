@@ -168,19 +168,6 @@ class SingBoxVpnService : VpnService() {
         return descriptor.fd
     }
 
-    private fun emptyInterfaceIterator(): NetworkInterfaceIterator {
-        return Proxy.newProxyInstance(
-            NetworkInterfaceIterator::class.java.classLoader,
-            arrayOf(NetworkInterfaceIterator::class.java)
-        ) { _, method, _ ->
-            when (method.name) {
-                "hasNext" -> false
-                "next" -> null
-                else -> null
-            }
-        } as NetworkInterfaceIterator
-    }
-
     private fun broadcastState(connected: Boolean, error: String? = null) {
         sendBroadcast(Intent(ACTION_STATE).setPackage(packageName)
             .putExtra(EXTRA_CONNECTED, connected)
