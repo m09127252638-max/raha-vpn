@@ -154,7 +154,7 @@ object PublicConfigSearch {
     fun fetchSubscription(subscriptionUrl: String): List<String> =
         fetchSubscriptionReport(subscriptionUrl).configs
 
-    fun fetchSubscriptionReport(subscriptionUrl: String): FeedParseReport {
+    internal fun fetchSubscriptionReport(subscriptionUrl: String): FeedParseReport {
         require(subscriptionUrl.length <= 2048) { "Subscription URL is too long" }
         val parsed = java.net.URI(subscriptionUrl.trim())
         require(parsed.scheme.equals("https", ignoreCase = true)) {
