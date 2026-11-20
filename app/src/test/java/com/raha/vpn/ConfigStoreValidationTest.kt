@@ -14,9 +14,22 @@ class ConfigStoreValidationTest {
             "vless://id@example.com:443",
             "vmess://eyJhZGQiOiJleGFtcGxlLmNvbSJ9",
             "trojan://password@example.com:443",
-            "hysteria2://password@example.com:443",
-            "wireguard://private-key@example.com:51820"
+            "hysteria2://password@example.com:443"
         ).forEach { assertTrue("Expected supported scheme: $it", ConfigStore.isSupported(it)) }
+
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val wireGuardConfig = """
+            [Interface]
+            PrivateKey = $key
+            Address = 10.66.0.2/32
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = wg.example.net:51820
+            AllowedIPs = 0.0.0.0/0
+        """.trimIndent()
+        assertTrue("Expected standard WireGuard config to be supported", ConfigStore.isSupported(wireGuardConfig))
+        assertFalse("Custom WireGuard share URIs are not supported", ConfigStore.isSupported("wireguard://private-key@example.com:51820"))
     }
 
     @Test
