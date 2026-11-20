@@ -24,7 +24,10 @@ object PublicConfigSearch {
         "https://raw.githubusercontent.com/3000S-HTTP/sNSub/main/output/best59_base64.txt",
         // CDN mirrors help when raw.githubusercontent.com is unreachable.
         "https://cdn.jsdelivr.net/gh/morpheusadam/v2ray-config@main/subs/bundles/iran.txt",
-        "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@main/config.txt"
+        "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@main/config.txt",
+        "https://cdn.jsdelivr.net/gh/center2055/OnionHop-Bridges-Collector@main/bridge/obfs4_tested.txt",
+        "https://cdn.jsdelivr.net/gh/center2055/OnionHop-Bridges-Collector@main/bridge/obfs4_72h.txt",
+        "https://cdn.jsdelivr.net/gh/3000S-HTTP/sNSub@main/output/best59_base64.txt"
     )
 
     /**
