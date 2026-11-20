@@ -30,6 +30,8 @@ class ConfigStoreValidationTest {
     fun acceptsValidObfs4BridgeAndBridgePrefix() {
         assertTrue(ConfigStore.isSupported(validObfs4))
         assertTrue(ConfigStore.isSupported("Bridge $validObfs4"))
+        assertTrue(ConfigStore.isSupported("BRIDGE $validObfs4"))
+        assertTrue(ConfigStore.isSupported("bridge $validObfs4"))
     }
 
     @Test
