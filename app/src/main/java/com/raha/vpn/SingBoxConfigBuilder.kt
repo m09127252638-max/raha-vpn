@@ -2,6 +2,7 @@ package com.raha.vpn
 
 import android.net.Uri
 import android.util.Base64
+import java.net.InetAddress
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -133,7 +134,9 @@ object SingBoxConfigBuilder {
                 val target = current ?: error("گزینه‌های فایل WireGuard باید داخل بخش Interface یا Peer باشند")
                 val separator = line.indexOf('=')
                 require(separator > 0) { "ساختار خط فایل WireGuard معتبر نیست" }
-                target[line.substring(0, separator).trim().lowercase()] = line.substring(separator + 1).trim()
+                val option = line.substring(0, separator).trim().lowercase()
+                require(option !in target) { "گزینه تکراری در فایل WireGuard: $option" }
+                target[option] = line.substring(separator + 1).trim()
             }
         }
         val iface = sections["interface"] ?: error("بخش [Interface] در فایل WireGuard وجود ندارد")
@@ -166,16 +169,23 @@ object SingBoxConfigBuilder {
                 require(validWireGuardKey(it)) { "PresharedKey در WireGuard معتبر نیست" }
                 peerJson.put("pre_shared_key", it)
             }
-            peer["persistentkeepalive"]?.toIntOrNull()?.let {
-                require(it in 0..65535) { "PersistentKeepalive در WireGuard معتبر نیست" }
-                peerJson.put("persistent_keepalive_interval", it)
+            peer["persistentkeepalive"]?.let { value ->
+                val interval = value.toIntOrNull()
+                    ?: error("PersistentKeepalive در WireGuard باید عدد صحیح باشد")
+                require(interval in 0..65535) { "PersistentKeepalive در WireGuard معتبر نیست" }
+                peerJson.put("persistent_keepalive_interval", interval)
             }
             peerArray.put(peerJson)
         }
+        val mtu = iface["mtu"]?.let { value ->
+            val parsed = value.toIntOrNull() ?: error("MTU در WireGuard باید عدد صحیح باشد")
+            require(parsed in 576..9000) { "MTU در WireGuard خارج از محدودهٔ مجاز است" }
+            parsed
+        } ?: 1408
         val endpoint = JSONObject()
             .put("type", "wireguard").put("tag", "wg-ep")
             .put("system", false)
-            .put("mtu", iface["mtu"]?.toIntOrNull()?.also { require(it in 576..9000) } ?: 1408)
+            .put("mtu", mtu)
             .put("address", JSONArray(addresses))
             .put("private_key", privateKey)
             .put("domain_resolver", "local-dns")
@@ -188,12 +198,14 @@ object SingBoxConfigBuilder {
     }.getOrDefault(false)
 
     private fun validCidr(value: String): Boolean {
+        if (value.count { it == '/' } != 1) return false
         val address = value.substringBefore('/')
-        val prefix = value.substringAfter('/', "").toIntOrNull() ?: return false
+        val prefix = value.substringAfter('/').toIntOrNull() ?: return false
         val isV4 = address.matches(Regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$")) &&
-            address.split('.').all { it.toIntOrNull() in 0..255 }
-        val isV6 = address.contains(':') && address.matches(Regex("^[0-9a-fA-F:]+$"))
-        return (isV4 && prefix in 0..32) || (isV6 && prefix in 0..128)
+            address.split('.').all { it.toIntOrNull() in 0..255 } && prefix in 0..32
+        if (isV4) return true
+        if (!address.contains(':') || !address.matches(Regex("^[0-9a-fA-F:.]+$")) || prefix !in 0..128) return false
+        return runCatching { InetAddress.getByName(address).address.size == 16 }.getOrDefault(false)
     }
 
     private fun buildHysteria2(link: String): String {
