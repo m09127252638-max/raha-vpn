@@ -327,7 +327,7 @@ fun RahaApp() {
                         Text("سرورهای من", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(8.dp))
                         if (servers.isEmpty()) Text("هنوز سروری اضافه نشده است.", color = Muted, modifier = Modifier.padding(vertical = 18.dp))
-                        else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(servers) { server ->
                                 Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().clickable { selectedServer = server }) {
                                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -458,6 +458,7 @@ fun RahaApp() {
                         }, enabled = !configSearching, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text(if (configSearching) "در حال جستجو..." else "جستجوی کانفیگ‌های عمومی")
                         }
+                        if (publicConfigs.size > 25) Text("۲۵ مورد اول نمایش داده می‌شود؛ ${publicConfigs.size} مورد دریافت شد.", color = Muted, fontSize = 11.sp)
                         LazyColumn(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(3.dp)
@@ -480,7 +481,6 @@ fun RahaApp() {
                                 }
                             }
                         }
-                        if (publicConfigs.size > 25) Text("۲۵ مورد اول نمایش داده می‌شود؛ " + publicConfigs.size + " مورد دریافت شد.", color = Muted, fontSize = 11.sp)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
