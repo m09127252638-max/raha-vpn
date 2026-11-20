@@ -121,6 +121,12 @@ class SingBoxVpnService : VpnService() {
                 override fun serviceStop() {
                     val stopId = latestStartId
                     executor.execute {
+                        // A delayed stop from an older CommandServer must not tear
+                        // down a newer connection request queued in the meantime.
+                        if (stopId != latestStartId) {
+                            Log.i(TAG, "Ignoring stale sing-box stop request")
+                            return@execute
+                        }
                         stopTunnel()
                         stopSelfResult(stopId)
                     }
