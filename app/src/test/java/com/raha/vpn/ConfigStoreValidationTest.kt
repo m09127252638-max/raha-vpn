@@ -164,6 +164,18 @@ class ConfigStoreValidationTest {
 
 
     @Test
+    fun torConfigurationUsesObfs4BridgeAndLoopbackSocksOnly() {
+        val bridge = "obfs4 192.0.2.10:443 " + "a".repeat(40) + " cert=AQID iat-mode=0"
+        val torrc = TorBridgeManager.buildTorrc(bridge, "127.0.0.1:9001")
+        assertTrue(torrc.contains("UseBridges 1"))
+        assertTrue(torrc.contains("ClientTransportPlugin obfs4 socks5 127.0.0.1:9001"))
+        assertTrue(torrc.contains("Bridge $bridge"))
+        assertTrue(torrc.contains("SocksPort 127.0.0.1:19050"))
+        assertTrue(torrc.contains("SafeSocks 1"))
+        assertFalse(torrc.contains("SocksPort 0\nSocksPort 0"))
+    }
+
+    @Test
     fun acceptsSuccessfulTorSocksConnectReply() {
         val reply = byteArrayOf(5, 0, 0, 1, 127, 0, 0, 1, 1, -69)
         assertTrue(TorBridgeManager.consumeSocks5ConnectReply(ByteArrayInputStream(reply)))
