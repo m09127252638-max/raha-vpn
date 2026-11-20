@@ -20,8 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.net.Inet4Address
-import java.net.InetAddress
 
 /**
  * Owns the Android VPN permission, TUN descriptor, Xray lifecycle and Tor bridge.
@@ -98,10 +96,9 @@ class RahaVpnService : VpnService() {
         } else {
             // Use the same strict, locally tested parser as public discovery so a server
             // is never shown as usable by one parser and rejected by another at connect time.
-            val source = org.json.JSONObject(XrayConfigBuilder.build(rawConfig.orEmpty()))
-            val hostname = XrayConfigBuilder.outboundServerAddress(source)
-            val resolved = resolveServerAddress(hostname)
-            XrayConfigBuilder.withResolvedServerAddress(source, resolved)
+            // Keep the original hostname so Xray can resolve it through its
+            // built-in DoH bootstrap rather than the carrier/system DNS resolver.
+            org.json.JSONObject(XrayConfigBuilder.build(rawConfig.orEmpty()))
         }
 
         val socksAddress = if (torMode) {
@@ -158,18 +155,6 @@ class RahaVpnService : VpnService() {
         return builder.establish()
             ?: throw IllegalStateException("Android did not establish the VPN TUN descriptor")
     }
-
-    private suspend fun resolveServerAddress(host: String): String =
-        kotlinx.coroutines.withContext(Dispatchers.IO) {
-            val candidates = InetAddress.getAllByName(host)
-                .filterNot {
-                    it.isAnyLocalAddress || it.isLinkLocalAddress || it.isMulticastAddress
-                }
-            val selected = candidates.firstOrNull { it is Inet4Address }
-                ?: candidates.firstOrNull()
-                ?: throw IllegalStateException("سرور به یک نشانی IP قابل‌دسترسی تبدیل نشد.")
-            selected.hostAddress?.substringBefore('%') ?: throw IllegalStateException("نشانی IP سرور معتبر نیست.")
-        }
 
     private suspend fun cleanupResources() {
         runCatching { xrayCore.stop() }
