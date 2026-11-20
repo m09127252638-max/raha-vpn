@@ -147,7 +147,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(14.dp))
                         val isObfs4Selected = selectedServer?.protocol == "obfs4"
-                        val isSingBoxSupported = selectedServer?.protocol in setOf("vless", "vmess", "trojan", "ss", "shadowsocks", "hysteria2", "hy2", "tuic")
+                        val isSingBoxSupported = selectedServer?.protocol in setOf("vless", "vmess", "trojan", "ss", "shadowsocks", "hysteria2", "hy2", "tuic", "wireguard", "wg")
                         val isAnyConnected = torConnected || vpnConnected
                         Text(
                             when {
@@ -170,10 +170,10 @@ fun RahaApp() {
                                 vpnConnected && isObfs4Selected -> "تمام ترافیک دستگاه از مسیر Tor عبور می‌کند."
                                 vpnConnected -> "ترافیک دستگاه از تونل sing-box عبور می‌کند."
                                 torConnected -> "پل Tor آماده است؛ برای اتصال سراسری دوباره بزن."
-                                selectedServer == null -> "یک کانفیگ VLESS، VMess، Trojan، Shadowsocks یا پل obfs4 اضافه کن."
+                                selectedServer == null -> "یک کانفیگ VLESS، VMess، Trojan، Shadowsocks، WireGuard یا پل obfs4 اضافه کن."
                                 isObfs4Selected -> "اتصال Tor با پل obfs4"
                                 isSingBoxSupported -> "سرور انتخاب‌شده: ${selectedServer?.address}"
-                                else -> "فعلاً VLESS، VMess، Trojan، Shadowsocks، Hysteria2، TUIC و obfs4 قابل اتصال‌اند."
+                                else -> "این نوع کانفیگ هنوز آماده اتصال نیست."
                             },
                             color = Muted,
                             fontSize = 12.sp
@@ -302,10 +302,14 @@ fun RahaApp() {
                         Text("افزودن کانفیگ", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text("لینک سرور یا خط کامل obfs4 را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
-                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless:// یا vmess:// یا trojan:// یا hysteria2:// یا obfs4 ...") }, minLines = 4)
+                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless://، hysteria2://، tuic://، فایل WireGuard یا obfs4 ...") }, minLines = 4)
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
-                            val entries = configText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+                            val entries = if (configText.contains("[Interface]", ignoreCase = true) && configText.contains("[Peer]", ignoreCase = true)) {
+                                listOf(configText.trim())
+                            } else {
+                                configText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+                            }
                             val valid = entries.filter { ConfigStore.isSupported(it) }
                             if (valid.isNotEmpty()) {
                                 runCatching {
@@ -422,8 +426,11 @@ private fun RowScope.TabButton(label: String, active: Boolean, onClick: () -> Un
 
 private fun serverFromConfig(raw: String, index: Int): Server {
     val isObfs4 = raw.startsWith("obfs4 ", ignoreCase = true)
-    val protocol = if (isObfs4) "obfs4" else raw.substringBefore("://", "").lowercase()
-    val endpoint = if (isObfs4) {
+    val isWireGuard = raw.contains("[Interface]", ignoreCase = true) && raw.contains("[Peer]", ignoreCase = true)
+    val protocol = when { isObfs4 -> "obfs4"; isWireGuard -> "wireguard"; else -> raw.substringBefore("://", "").lowercase() }
+    val endpoint = if (isWireGuard) {
+        Regex("(?im)^\\s*Endpoint\\s*=\\s*(.+)$").find(raw)?.groupValues?.get(1)?.trim()
+    } else if (isObfs4) {
         Regex("""^obfs4\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1)
     } else {
         Regex("@([^@:/?#]+):\\d+").find(raw)?.groupValues?.get(1)
