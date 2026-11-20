@@ -14,6 +14,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -303,6 +305,7 @@ fun RahaApp() {
                         }
                     }
                     else -> {
+                        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                         Text("جستجوی سرورهای عمومی", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(8.dp))
                         Text("بررسی DNSهای عمومی رمزگذاری‌شده (DoH)", color = Muted)
@@ -393,9 +396,10 @@ fun RahaApp() {
                             color = Muted,
                             fontSize = 11.sp
                         )
+                        }
                     }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(12.dp))
                 Text(message, color = Gold, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("امنیت مهم‌تر از اتصال است؛ کانفیگ‌های ناشناس را با احتیاط استفاده کن.", color = Muted, fontSize = 10.sp)
