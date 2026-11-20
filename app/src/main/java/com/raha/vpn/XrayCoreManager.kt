@@ -3,6 +3,8 @@ package com.raha.vpn
 import android.content.Context
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -17,9 +19,11 @@ class XrayCoreManager(context: Context) {
     private var process: Process? = null
     private var configFile: File? = null
     private var logFile: File? = null
+    private val lifecycleMutex = Mutex()
 
-    suspend fun start(rawConfig: String, socksPort: Int = DEFAULT_SOCKS_PORT): Int {
-        stop()
+    suspend fun start(rawConfig: String, socksPort: Int = DEFAULT_SOCKS_PORT): Int =
+        lifecycleMutex.withLock {
+        stopLocked()
         val configJson = XrayConfigBuilder.build(rawConfig, socksPort)
         val executable = File(appContext.applicationInfo.nativeLibraryDir, "libxray.so")
         check(executable.isFile && executable.canExecute()) {
@@ -48,14 +52,17 @@ class XrayCoreManager(context: Context) {
                 }
             }
         } catch (error: Throwable) {
-            stop()
+            stopLocked()
             throw error
         }
-        return socksPort
+        socksPort
     }
 
-    @Synchronized
-    fun stop() {
+    suspend fun stop() = lifecycleMutex.withLock {
+        stopLocked()
+    }
+
+    private fun stopLocked() {
         process?.let { child ->
             runCatching { child.destroy() }
             runCatching {
