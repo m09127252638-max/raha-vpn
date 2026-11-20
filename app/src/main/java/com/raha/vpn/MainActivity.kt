@@ -51,7 +51,7 @@ fun RahaApp() {
     var configText by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("برای شروع، یک کانفیگ به برنامه اضافه کن.") }
     var servers by remember { mutableStateOf(savedServers) }
-    var selectedServer by remember { mutableStateOf(savedServers.firstOrNull()) }
+    var selectedServer by remember { mutableStateOf(savedServers.firstOrNull { it.protocol == "obfs4" } ?: savedServers.firstOrNull()) }
     var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
     var dnsChecking by remember { mutableStateOf(false) }
     var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -148,7 +148,7 @@ fun RahaApp() {
                                         IconButton(onClick = {
                                             configStore.remove(server.rawConfig)
                                             servers = servers.filterNot { it.rawConfig == server.rawConfig }
-                                            if (selectedServer?.rawConfig == server.rawConfig) selectedServer = servers.firstOrNull()
+                                            if (selectedServer?.rawConfig == server.rawConfig) selectedServer = servers.firstOrNull { it.protocol == "obfs4" } ?: servers.firstOrNull()
                                             message = "سرور از فهرست حذف شد."
                                         }) {
                                             Icon(Icons.Default.Delete, contentDescription = "حذف سرور", tint = Muted)
@@ -171,7 +171,7 @@ fun RahaApp() {
                                 runCatching {
                                     valid.forEach { configStore.add(it) }
                                     servers = configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) }
-                                    selectedServer = servers.firstOrNull()
+                                    selectedServer = servers.firstOrNull { it.protocol == "obfs4" } ?: servers.firstOrNull()
                                     configText = ""
                                     message = valid.size.toString() + " کانفیگ به‌صورت رمزگذاری‌شده ذخیره شد."
                                     selectedTab = 0
