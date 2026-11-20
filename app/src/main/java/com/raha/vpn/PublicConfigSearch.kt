@@ -1,28 +1,42 @@
 package com.raha.vpn
 
 import android.util.Base64
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
+
+internal data class FeedParseReport(
+    val configs: List<String>,
+    val totalLines: Int,
+    val accepted: Int,
+    val duplicates: Int,
+    val unsupported: Int,
+    val malformed: Int
+)
 
 object PublicConfigSearch {
+    private const val MAX_FEED_BYTES = 8 * 1024 * 1024
+    private const val MAX_LINE_CHARS = 64 * 1024
+    private const val MAX_FEED_LINES = 20_000
+    private const val MAX_CONFIGS = 500
+
+    private val proxySchemes = setOf("vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "tuic")
     private val sources = listOf(
         "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
         "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
         "https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt",
         "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_tested.txt",
         "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_72h.txt",
-        // Independently maintained, frequently refreshed public feeds.
         "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt",
         "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt",
-        // Larger, actively refreshed feeds with raw URI lines (not subscription indexes).
         "https://raw.githubusercontent.com/morpheusadam/v2ray-config/main/subs/bundles/iran.txt",
         "https://raw.githubusercontent.com/Alirewa/V2ray-Configs/main/config.txt",
-        // Base64 feed; decoded before scheme validation.
         "https://raw.githubusercontent.com/3000S-HTTP/sNSub/main/output/best59_base64.txt",
-        // CDN mirrors help when raw.githubusercontent.com is unreachable.
         "https://cdn.jsdelivr.net/gh/morpheusadam/v2ray-config@main/subs/bundles/iran.txt",
         "https://cdn.jsdelivr.net/gh/Alirewa/V2ray-Configs@main/config.txt",
         "https://cdn.jsdelivr.net/gh/center2055/OnionHop-Bridges-Collector@main/bridge/obfs4_tested.txt",
@@ -30,10 +44,7 @@ object PublicConfigSearch {
         "https://cdn.jsdelivr.net/gh/3000S-HTTP/sNSub@main/output/best59_base64.txt"
     )
 
-    /**
-     * Fetch feeds concurrently so one slow or blocked source does not delay every
-     * other source. Return partial results if the overall 40-second budget expires.
-     */
+    /** Concurrent discovery; results are importable candidates, not live-server claims. */
     fun fetch(): List<String> {
         val executor = Executors.newFixedThreadPool(8)
         return try {
@@ -46,15 +57,21 @@ object PublicConfigSearch {
         }
     }
 
+    internal fun parseFeedPayload(payload: String, bridgeFeed: Boolean = false): List<String> =
+        parseFeedPayloadWithReport(payload, bridgeFeed).configs
 
-    /**
-     * Parse both URI-per-line feeds and Base64 subscription bodies. Comment lines
-     * are removed before format detection, so a URL in a comment cannot prevent
-     * decoding a Base64 payload. This validates importability, not reachability.
-     */
-    internal fun parseFeedPayload(payload: String, bridgeFeed: Boolean = false): List<String> {
-        val cleaned = payload.removePrefix("\uFEFF")
+    /** Bounded parser for URI-per-line and Base64 feeds, with quality counters. */
+    internal fun parseFeedPayloadWithReport(
+        payload: String,
+        bridgeFeed: Boolean = false
+    ): FeedParseReport {
+        require(payload.toByteArray(Charsets.UTF_8).size <= MAX_FEED_BYTES) {
+            "Subscription exceeds the 8 MiB limit"
+        }
+
+        val cleanedLines = payload.removePrefix("\uFEFF")
             .lineSequence()
+            .take(MAX_FEED_LINES + 1)
             .map(String::trim)
             .filter { line ->
                 line.isNotEmpty() &&
@@ -63,7 +80,11 @@ object PublicConfigSearch {
                     !line.startsWith("//")
             }
             .toList()
-            .joinToString("\n")
+
+        val boundedLines = cleanedLines.take(MAX_FEED_LINES)
+        val oversizedCount = boundedLines.count { it.length > MAX_LINE_CHARS }
+        val safeLines = boundedLines.filter { it.length <= MAX_LINE_CHARS }
+        val cleaned = safeLines.joinToString("\n")
 
         val decoded = if (bridgeFeed || containsSupportedUri(cleaned)) {
             cleaned
@@ -71,47 +92,69 @@ object PublicConfigSearch {
             decodeBase64Subscription(cleaned) ?: cleaned
         }
 
-        val allowedSchemes = setOf("vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "tuic")
-        return decoded.lineSequence()
-            .map(String::trim)
-            .filter { line ->
-                if (bridgeFeed) {
-                    line.startsWith("obfs4 ", ignoreCase = true) &&
-                        ConfigStore.isSupported(line)
-                } else {
-                    line.substringBefore("://").lowercase() in allowedSchemes &&
-                        ConfigStore.isSupported(line)
-                }
+        val accepted = LinkedHashSet<String>()
+        var duplicates = 0
+        var unsupported = 0
+        var malformed = oversizedCount
+        var total = 0
+
+        decoded.lineSequence().forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty()) return@forEach
+            total++
+            if (line.length > MAX_LINE_CHARS) {
+                malformed++
+                return@forEach
             }
-            .distinct()
-            .take(500)
-            .toList()
+
+            val candidate = if (bridgeFeed) ConfigStore.normalizeObfs4Bridge(line) else line
+            val isBridge = candidate.startsWith("obfs4 ", ignoreCase = true)
+            val supported = if (bridgeFeed) {
+                isBridge && ConfigStore.isSupported(candidate)
+            } else {
+                candidate.substringBefore("://").lowercase() in proxySchemes &&
+                    ConfigStore.isSupported(candidate)
+            }
+
+            if (!supported) {
+                unsupported++
+            } else if (!accepted.add(candidate)) {
+                duplicates++
+            }
+        }
+
+        val result = accepted.take(MAX_CONFIGS)
+        if (accepted.size > MAX_CONFIGS) unsupported += accepted.size - MAX_CONFIGS
+        return FeedParseReport(
+            configs = result,
+            totalLines = total,
+            accepted = result.size,
+            duplicates = duplicates,
+            unsupported = unsupported,
+            malformed = malformed
+        )
     }
 
     private fun containsSupportedUri(value: String): Boolean =
         value.lineSequence().any { line ->
-            line.substringBefore("://").lowercase() in
-                setOf("vless", "vmess", "trojan", "ss", "hysteria2", "hy2", "tuic") &&
-                line.contains("://")
+            line.substringBefore("://").lowercase() in proxySchemes && line.contains("://")
         }
 
     private fun decodeBase64Subscription(value: String): String? {
         val compact = value.filterNot(Char::isWhitespace)
         if (compact.length < 16 || !compact.matches(Regex("[A-Za-z0-9_+/=-]+"))) return null
         val decodedBytes = runCatching { Base64.decode(compact, Base64.DEFAULT) }
-            .recoverCatching { Base64.decode(compact, Base64.URL_SAFE) }
+            .recoverCatching { Base64.decode(compact, Base64.URL_SAFE or Base64.NO_WRAP) }
             .getOrNull() ?: return null
+        if (decodedBytes.size > MAX_FEED_BYTES) return null
         val decoded = String(decodedBytes, Charsets.UTF_8)
-        // Reject arbitrary binary or unrelated text; only accept a decoded body
-        // containing at least one supported share URI.
         return decoded.takeIf(::containsSupportedUri)
     }
 
-    /**
-     * Import a user-provided HTTPS subscription URL. HTTP is intentionally rejected
-     * to avoid sending subscription contents over an unencrypted connection.
-     */
-    fun fetchSubscription(subscriptionUrl: String): List<String> {
+    fun fetchSubscription(subscriptionUrl: String): List<String> =
+        fetchSubscriptionReport(subscriptionUrl).configs
+
+    fun fetchSubscriptionReport(subscriptionUrl: String): FeedParseReport {
         require(subscriptionUrl.length <= 2048) { "Subscription URL is too long" }
         val parsed = java.net.URI(subscriptionUrl.trim())
         require(parsed.scheme.equals("https", ignoreCase = true)) {
@@ -123,45 +166,66 @@ object PublicConfigSearch {
         require(!parsed.host.equals("localhost", ignoreCase = true)) {
             "Local subscription URLs are not accepted"
         }
-        return fetchSource(parsed.toURL().toString())
+        return parseFeedPayloadWithReport(fetchPayload(parsed.toURL().toString()))
     }
 
     internal fun prioritizeResults(resultsBySource: List<List<String>>): List<String> {
         val all = resultsBySource.flatten().distinct()
-        // Bridge feeds occur after large proxy feeds. Put a small bridge sample first
-        // so it is actually visible in the app's first screen of search results.
         val bridges = all.filter { it.startsWith("obfs4 ", ignoreCase = true) }.take(8)
         val proxies = all.filterNot { it.startsWith("obfs4 ", ignoreCase = true) }
         return (bridges + proxies).distinct().take(2_000)
     }
 
     private fun fetchSource(source: String): List<String> {
+        val payload = runCatching { fetchPayload(source) }.getOrNull() ?: return emptyList()
+        return runCatching {
+            parseFeedPayload(payload, source.contains("obfs4_", ignoreCase = true))
+        }.getOrDefault(emptyList())
+    }
+
+    private fun fetchPayload(source: String): String {
         val connection = (URL(source).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 10000
+            connectTimeout = 8_000
+            readTimeout = 10_000
             requestMethod = "GET"
+            instanceFollowRedirects = true
             setRequestProperty("User-Agent", "H-MAGHSODI-Android")
+            setRequestProperty("Accept", "text/plain, application/octet-stream;q=0.9, */*;q=0.5")
+            setRequestProperty("Accept-Encoding", "gzip")
         }
         try {
-            if (!connection.url.protocol.equals("https", ignoreCase = true)) return emptyList()
-            if (connection.responseCode !in 200..299) return emptyList()
-            val bytes = connection.inputStream.use { input ->
-                val output = java.io.ByteArrayOutputStream()
-                val buffer = ByteArray(8192)
-                var total = 0
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    total += count
-                    if (total > 1_500_000) error("Subscription too large")
-                    output.write(buffer, 0, count)
-                }
-                output.toByteArray()
+            if (!connection.url.protocol.equals("https", ignoreCase = true)) {
+                error("Insecure subscription redirect rejected")
             }
-            val raw = bytes.toString(Charsets.UTF_8)
-            return parseFeedPayload(raw, source.contains("obfs4_", ignoreCase = true))
+            if (connection.responseCode !in 200..299) {
+                error("Subscription server returned HTTP " + connection.responseCode)
+            }
+            val declaredLength = connection.getHeaderFieldLong("Content-Length", -1L)
+            if (declaredLength > MAX_FEED_BYTES) error("Subscription exceeds the 8 MiB limit")
+            val input = connection.inputStream
+            val decodedInput = if (connection.contentEncoding.equals("gzip", ignoreCase = true)) {
+                GZIPInputStream(input)
+            } else {
+                input
+            }
+            val bytes = decodedInput.use { readLimited(it, MAX_FEED_BYTES) }
+            return bytes.toString(Charsets.UTF_8)
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun readLimited(input: InputStream, maxBytes: Int): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            if (total > maxBytes) error("Subscription exceeds the 8 MiB limit")
+            output.write(buffer, 0, count)
+        }
+        return output.toByteArray()
     }
 }
