@@ -19,6 +19,7 @@ import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.SetupOptions
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.libbox.TunOptions
+import java.net.InetAddress
 import java.util.concurrent.Executors
 
 /**
@@ -169,7 +170,7 @@ class SingBoxVpnService : VpnService() {
                 if (ipv4Routes.hasNext()) {
                     while (ipv4Routes.hasNext()) {
                         val route = ipv4Routes.next()
-                        builder.addRoute(IpPrefix(route.address(), route.prefix()))
+                        builder.addRoute(IpPrefix(InetAddress.getByName(route.address()), route.prefix()))
                     }
                 } else if (options.inet4Address.hasNext()) {
                     builder.addRoute("0.0.0.0", 0)
