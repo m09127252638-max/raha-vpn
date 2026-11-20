@@ -17,7 +17,8 @@ object DnsProbe {
 
     private val providers = listOf(
         Provider("Cloudflare", "https://cloudflare-dns.com/dns-query?name=example.com&type=A"),
-        Provider("Google", "https://dns.google/resolve?name=example.com&type=A")
+        Provider("Google", "https://dns.google/resolve?name=example.com&type=A"),
+        Provider("AdGuard", "https://dns.adguard-dns.com/resolve?name=example.com&type=A")
     )
 
     fun checkAll(): List<DnsResult> = providers.map { provider ->
