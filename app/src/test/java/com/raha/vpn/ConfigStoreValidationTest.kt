@@ -140,7 +140,7 @@ class ConfigStoreValidationTest {
         val valid = "trojan://secret@example.net:443"
         val oversized = "vless://" + "x".repeat(64 * 1024)
         val report = PublicConfigSearch.parseFeedPayloadWithReport(
-            listOf(valid, valid, "unsupported://example.net:443", oversized).joinToString("\\n")
+            listOf(valid, valid, "unsupported://example.net:443", oversized).joinToString("\n")
         )
 
         assertEquals(listOf(valid), report.configs)
