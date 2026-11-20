@@ -84,7 +84,7 @@ class ConfigStoreValidationTest {
     fun decodesBase64SubscriptionEvenWhenCommentContainsUrl() {
         val config = "vless://123e4567-e89b-12d3-a456-426614174000@example.com:443#node"
         val encoded = android.util.Base64.encodeToString(
-            ("# source: https://example.org/feed\\n" + config).toByteArray(),
+            ("# source: https://example.org/feed\n" + config).toByteArray(),
             android.util.Base64.NO_WRAP
         )
 
