@@ -198,14 +198,28 @@ class SingBoxVpnService : VpnService() {
                 }
             } else {
                 val ipv4Routes = options.inet4RouteRange
+                var hasIpv4Route = false
                 while (ipv4Routes.hasNext()) {
                     val route = ipv4Routes.next()
                     builder.addRoute(route.address(), route.prefix())
+                    hasIpv4Route = true
                 }
+                // Older Android versions do not expose excludeRoute(). If sing-box
+                // supplies no explicit ranges, still install the default route so
+                // the TUN does not come up without carrying IPv4 traffic.
+                if (!hasIpv4Route && options.inet4Address.hasNext()) {
+                    builder.addRoute("0.0.0.0", 0)
+                }
+
                 val ipv6Routes = options.inet6RouteRange
+                var hasIpv6Route = false
                 while (ipv6Routes.hasNext()) {
                     val route = ipv6Routes.next()
                     builder.addRoute(route.address(), route.prefix())
+                    hasIpv6Route = true
+                }
+                if (!hasIpv6Route && options.inet6Address.hasNext()) {
+                    builder.addRoute("::", 0)
                 }
             }
         }
