@@ -65,6 +65,7 @@ fun RahaApp() {
     var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
     var dnsChecking by remember { mutableStateOf(false) }
     var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
+    var publicConfigVisibleCount by remember { mutableStateOf(25) }
     var configSearching by remember { mutableStateOf(false) }
     var vpnStatus by remember { mutableStateOf(RahaVpnService.STATUS_DISCONNECTED) }
     var activeProtocol by remember { mutableStateOf("") }
@@ -352,6 +353,7 @@ fun RahaApp() {
                                 coroutineScope.launch {
                                     val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
                                     publicConfigs = found
+                                    publicConfigVisibleCount = 25
                                     configSearching = false
                                     message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else found.size.toString() + " کانفیگ عمومی پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
                                 }
@@ -359,7 +361,7 @@ fun RahaApp() {
                         }, enabled = !configSearching, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text(if (configSearching) "در حال جستجو..." else "جستجوی کانفیگ‌های عمومی")
                         }
-                        publicConfigs.take(25).forEach { raw ->
+                        publicConfigs.take(publicConfigVisibleCount).forEach { raw ->
                             Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
@@ -380,7 +382,17 @@ fun RahaApp() {
                                 }
                             }
                         }
-                        if (publicConfigs.size > 25) Text("۲۵ مورد اول نمایش داده می‌شود؛ " + publicConfigs.size + " مورد دریافت شد.", color = Muted, fontSize = 11.sp)
+                        if (publicConfigs.size > publicConfigVisibleCount) {
+                            TextButton(
+                                onClick = { publicConfigVisibleCount = (publicConfigVisibleCount + 25).coerceAtMost(publicConfigs.size) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("نمایش ۲۵ مورد بعدی • ${publicConfigs.size - publicConfigVisibleCount} مورد باقی‌مانده", color = Gold) }
+                        }
+                        if (publicConfigs.isNotEmpty()) Text(
+                            "از ${publicConfigs.size} نتیجه یکتا دریافت شد؛ آنلاین بودن سرورها هنوز تست نشده است.",
+                            color = Muted,
+                            fontSize = 11.sp
+                        )
                     }
                 }
                 Spacer(Modifier.weight(1f))
