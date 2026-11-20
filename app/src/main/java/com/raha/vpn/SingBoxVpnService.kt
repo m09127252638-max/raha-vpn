@@ -101,7 +101,7 @@ class SingBoxVpnService : VpnService() {
             val platform = createPlatformInterface()
             val handler = object : CommandServerHandler {
                 override fun serviceStop() {
-                    stopSelf()
+                    executor.execute { stopTunnel() }
                 }
 
                 override fun serviceReload() {
@@ -126,9 +126,11 @@ class SingBoxVpnService : VpnService() {
             server.start()
             server.startOrReloadService(config, OverrideOptions())
             commandServer = server
+            broadcastState(connected = true)
             Log.i(TAG, "sing-box tunnel started")
         } catch (error: Throwable) {
             Log.e(TAG, "Unable to start sing-box tunnel", error)
+            broadcastState(connected = false, error = error.message ?: "خطای راه‌اندازی تونل")
             stopTunnel()
             stopSelf(startId)
         }
@@ -200,6 +202,12 @@ class SingBoxVpnService : VpnService() {
         } as NetworkInterfaceIterator
     }
 
+    private fun broadcastState(connected: Boolean, error: String? = null) {
+        sendBroadcast(Intent(ACTION_STATE).setPackage(packageName)
+            .putExtra(EXTRA_CONNECTED, connected)
+            .putExtra(EXTRA_ERROR, error))
+    }
+
     private fun releaseTunnel() {
         runCatching { commandServer?.closeService() }
         runCatching { commandServer?.close() }
@@ -210,6 +218,7 @@ class SingBoxVpnService : VpnService() {
 
     private fun stopTunnel() {
         releaseTunnel()
+        broadcastState(connected = false)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -218,6 +227,9 @@ class SingBoxVpnService : VpnService() {
         private const val TAG = "SingBoxVpnService"
         private const val CHANNEL_ID = "hmagsodi-vpn"
         private const val NOTIFICATION_ID = 7314
+        const val ACTION_STATE = "com.raha.vpn.action.STATE"
+        const val EXTRA_CONNECTED = "connected"
+        const val EXTRA_ERROR = "error"
         private const val ACTION_START = "com.raha.vpn.action.START"
         private const val ACTION_STOP = "com.raha.vpn.action.STOP"
         private const val EXTRA_CONFIG = "singbox_config"
