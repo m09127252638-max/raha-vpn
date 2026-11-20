@@ -458,27 +458,32 @@ fun RahaApp() {
                         }, enabled = !configSearching, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text(if (configSearching) "در حال جستجو..." else "جستجوی کانفیگ‌های عمومی")
                         }
-                        publicConfigs.take(25).forEach { raw ->
-                            Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text((if (raw.startsWith("obfs4 ", ignoreCase = true)) "OBFS4" else raw.substringBefore("://").uppercase()) + " • کانفیگ عمومی", fontSize = 12.sp)
-                                        Text(raw.take(64), color = Muted, fontSize = 10.sp, maxLines = 1)
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            items(publicConfigs.take(25)) { raw ->
+                                Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth()) {
+                                    Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text((if (raw.startsWith("obfs4 ", ignoreCase = true)) "OBFS4" else raw.substringBefore("://").uppercase()) + " • کانفیگ عمومی", fontSize = 12.sp)
+                                            Text(raw.take(64), color = Muted, fontSize = 10.sp, maxLines = 1)
+                                        }
+                                        TextButton(onClick = {
+                                            runCatching { configStore.add(raw) }.onSuccess {
+                                                servers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
+                                                publicConfigs = publicConfigs.filterNot { it == raw }
+                                                message = "کانفیگ ذخیره شد؛ اتصال VPN هنوز تکمیل نشده است."
+                                            }.onFailure { message = "ذخیره کانفیگ انجام نشد." }
+                                        }) { Text("افزودن", color = Gold) }
                                     }
-                                    TextButton(onClick = {
-                                        runCatching { configStore.add(raw) }.onSuccess {
-                                            servers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
-                                            publicConfigs = publicConfigs.filterNot { it == raw }
-                                            message = "کانفیگ ذخیره شد؛ اتصال VPN هنوز تکمیل نشده است."
-                                        }.onFailure { message = "ذخیره کانفیگ انجام نشد." }
-                                    }) { Text("افزودن", color = Gold) }
                                 }
                             }
                         }
                         if (publicConfigs.size > 25) Text("۲۵ مورد اول نمایش داده می‌شود؛ " + publicConfigs.size + " مورد دریافت شد.", color = Muted, fontSize = 11.sp)
                     }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(8.dp))
                 Text(message, color = Gold, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("امنیت مهم‌تر از اتصال است؛ کانفیگ‌های ناشناس را با احتیاط استفاده کن.", color = Muted, fontSize = 10.sp)
