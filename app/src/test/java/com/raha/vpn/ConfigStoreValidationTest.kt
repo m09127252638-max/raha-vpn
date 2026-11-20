@@ -172,6 +172,9 @@ class ConfigStoreValidationTest {
     fun rejectsMissingOrMalformedTraceAddress() {
         assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("fl=abc\nts=123"))
         assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=not-an-ip"))
+        assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=999.999.999.999"))
+        assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=192.168.001.1"))
+        assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=2001:::1"))
         assertEquals(null, TunnelConnectivityProbe.parseTraceExitIp("ip=" + "1".repeat(46)))
     }
 }
