@@ -53,7 +53,7 @@ object PublicConfigSearch {
      * decoding a Base64 payload. This validates importability, not reachability.
      */
     internal fun parseFeedPayload(payload: String, bridgeFeed: Boolean = false): List<String> {
-        val cleaned = payload.removePrefix("\\uFEFF")
+        val cleaned = payload.removePrefix("\uFEFF")
             .lineSequence()
             .map(String::trim)
             .filter { line ->
@@ -63,7 +63,7 @@ object PublicConfigSearch {
                     !line.startsWith("//")
             }
             .toList()
-            .joinToString("\\n")
+            .joinToString("\n")
 
         val decoded = if (bridgeFeed || containsSupportedUri(cleaned)) {
             cleaned
