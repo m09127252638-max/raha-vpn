@@ -46,7 +46,7 @@ class SingBoxConfigBuilderTest {
         assertEquals("proxy", config.getJSONObject("route").getString("final"))
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test(expected = IllegalStateException::class)
     fun rejectsUnsupportedProtocolForDeviceTunnel() {
         SingBoxConfigBuilder.build("ss://YWVzLTI1Ni1nY206cGFzcw==@example.com:8388")
     }
