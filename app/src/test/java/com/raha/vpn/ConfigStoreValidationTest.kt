@@ -36,6 +36,7 @@ class ConfigStoreValidationTest {
     fun rejectsUnknownAndMalformedSchemes() {
         assertFalse(ConfigStore.isSupported("ftp://example.com/file"))
         assertFalse(ConfigStore.isSupported("not-a-config"))
+        assertFalse("Oversized configurations must be rejected", ConfigStore.isSupported("vless://" + "a".repeat(128 * 1024)))
         assertFalse(ConfigStore.isSupported("obfs4 not-a-valid-bridge"))
         assertFalse("Hysteria v1 is not implemented", ConfigStore.isSupported("hysteria://password@example.com:443"))
         assertFalse("AnyTLS is not implemented", ConfigStore.isSupported("anytls://password@example.com:443"))
