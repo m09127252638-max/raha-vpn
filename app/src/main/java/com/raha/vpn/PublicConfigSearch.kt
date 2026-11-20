@@ -16,8 +16,7 @@ object PublicConfigSearch {
         "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_72h.txt",
         // Independently maintained, frequently refreshed public feeds.
         "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt",
-        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt",
-        "https://raw.githubusercontent.com/zhuhaiuk/free-nodes/main/nodes.txt"
+        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt"
     )
 
     /**
