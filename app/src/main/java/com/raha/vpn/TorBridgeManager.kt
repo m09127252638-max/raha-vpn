@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.EOFException
 import java.io.InputStream
 import java.net.InetSocketAddress
@@ -75,16 +76,21 @@ class TorBridgeManager(private val context: Context) {
      * STATUS_ON only means the Android service started. Wait until a SOCKS5
      * CONNECT succeeds through Tor, which requires a working circuit and exit.
      */
-    private suspend fun awaitTorCircuitReady() = withTimeout(180_000L) {
-        while (true) {
-            val connected = withContext(Dispatchers.IO) {
-                runCatching { probeTorSocksCircuit() }.getOrDefault(false)
+    private suspend fun awaitTorCircuitReady() {
+        val ready = withTimeoutOrNull(180_000L) {
+            while (true) {
+                val connected = withContext(Dispatchers.IO) {
+                    runCatching { probeTorSocksCircuit() }.getOrDefault(false)
+                }
+                if (connected) return@withTimeoutOrNull true
+                delay(3_000L)
             }
-            if (connected) return@withTimeout
-            delay(3_000L)
+            @Suppress("UNREACHABLE_CODE")
+            false
         }
-        @Suppress("UNREACHABLE_CODE")
-        Unit
+        check(ready == true) {
+            "سرویس Tor روشن شد، اما طی ۳ دقیقه مدار و اتصال خروجی سالم برقرار نشد."
+        }
     }
 
     private fun probeTorSocksCircuit(): Boolean {
