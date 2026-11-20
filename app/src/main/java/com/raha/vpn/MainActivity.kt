@@ -270,7 +270,9 @@ fun RahaApp() {
                             Text(
                                 when {
                                     torConnecting || vpnConnecting -> "در حال اتصال..."
-                                    torConnected || vpnConnected -> "قطع اتصال"
+                                    vpnConnected -> "قطع اتصال"
+                                    torConnected && isObfs4Selected -> "ادامه اتصال سراسری با Tor"
+                                    torConnected -> "قطع اتصال"
                                     isObfs4Selected -> "اتصال سراسری با obfs4"
                                     isSingBoxSupported -> "اتصال VPN سراسری"
                                     selectedServer != null -> "پروتکل پشتیبانی‌نشده"
