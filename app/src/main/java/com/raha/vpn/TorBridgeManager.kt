@@ -7,8 +7,16 @@ import android.content.IntentFilter
 import android.os.Build
 import org.torproject.jni.TorService
 import io.nekohasekai.IPtProxy.Controller
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.io.EOFException
+import java.io.InputStream
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -45,6 +53,7 @@ class TorBridgeManager(private val context: Context) {
             torrc.writeText(buildTorrc(bridge, transportAddress))
 
             awaitTorServiceStarted()
+            awaitTorCircuitReady()
             started = true
             return "127.0.0.1:19050"
         } catch (error: Throwable) {
@@ -71,6 +80,64 @@ class TorBridgeManager(private val context: Context) {
             "SocksPort 127.0.0.1:19050",
             "SafeSocks 1"
         ).joinToString("\n", postfix = "\n")
+
+    /**
+     * STATUS_ON only means the Android service started. Wait until a SOCKS5
+     * CONNECT succeeds through Tor, which requires a working circuit and exit.
+     */
+    private suspend fun awaitTorCircuitReady() = withTimeout(180_000L) {
+        var lastError: Exception? = null
+        while (true) {
+            val connected = withContext(Dispatchers.IO) {
+                runCatching { probeTorSocksCircuit() }
+                    .onFailure { lastError = it as? Exception }
+                    .getOrDefault(false)
+            }
+            if (connected) return@withTimeout
+            delay(3_000L)
+        }
+        @Suppress("UNREACHABLE_CODE")
+        Unit
+    }
+
+    private fun probeTorSocksCircuit(): Boolean {
+        val host = "check.torproject.org"
+        val hostBytes = host.toByteArray(StandardCharsets.US_ASCII)
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress("127.0.0.1", 19050), 5_000)
+            socket.soTimeout = 7_000
+            val input = socket.getInputStream()
+            val output = socket.getOutputStream()
+
+            output.write(byteArrayOf(5, 1, 0))
+            output.flush()
+            if (input.read() != 5 || input.read() != 0) return false
+
+            output.write(byteArrayOf(5, 1, 0, 3, hostBytes.size.toByte()))
+            output.write(hostBytes)
+            output.write(byteArrayOf(1, -69)) // TCP port 443
+            output.flush()
+            return consumeSocks5ConnectReply(input)
+        }
+    }
+
+    internal fun consumeSocks5ConnectReply(input: InputStream): Boolean = runCatching {
+        if (input.read() != 5) return@runCatching false
+        if (input.read() != 0) return@runCatching false
+        if (input.read() != 0) return@runCatching false
+        when (input.read()) {
+            1 -> repeat(4) { if (input.read() < 0) throw EOFException() }
+            3 -> {
+                val length = input.read()
+                if (length < 0) throw EOFException()
+                repeat(length) { if (input.read() < 0) throw EOFException() }
+            }
+            4 -> repeat(16) { if (input.read() < 0) throw EOFException() }
+            else -> return@runCatching false
+        }
+        if (input.read() < 0 || input.read() < 0) throw EOFException()
+        true
+    }.getOrDefault(false)
 
     private suspend fun awaitTorServiceStarted() = withTimeout(240_000L) {
         suspendCancellableCoroutine<Unit> { continuation ->
