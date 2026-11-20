@@ -37,6 +37,9 @@ class ConfigStoreValidationTest {
         assertFalse(ConfigStore.isSupported("ftp://example.com/file"))
         assertFalse(ConfigStore.isSupported("not-a-config"))
         assertFalse(ConfigStore.isSupported("obfs4 not-a-valid-bridge"))
+        assertFalse("Hysteria v1 is not implemented", ConfigStore.isSupported("hysteria://password@example.com:443"))
+        assertFalse("AnyTLS is not implemented", ConfigStore.isSupported("anytls://password@example.com:443"))
+        assertFalse("Standalone SOCKS links are not implemented", ConfigStore.isSupported("socks5://user:pass@example.com:1080"))
     }
 
     @Test
