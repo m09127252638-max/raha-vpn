@@ -104,7 +104,10 @@ class ConfigStore(context: Context) {
             )
         }
 
+        private const val MAX_CONFIG_CHARS = 128 * 1024
+
         fun isSupported(value: String): Boolean {
+            if (value.length > MAX_CONFIG_CHARS) return false
             val normalized = normalizeObfs4Bridge(value)
             if (normalized.contains("[Interface]", ignoreCase = true) && normalized.contains("[Peer]", ignoreCase = true)) {
                 return normalized.contains(Regex("(?im)^\\s*PrivateKey\\s*=\\s*[^\\s]+")) &&
