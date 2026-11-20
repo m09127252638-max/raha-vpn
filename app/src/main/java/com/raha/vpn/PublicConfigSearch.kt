@@ -29,6 +29,7 @@ object PublicConfigSearch {
         Source("https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt", Kind.XRAY_SHARE_LINKS),
         Source("https://raw.githubusercontent.com/Alirewa/v2ray-configs/main/config.txt", Kind.XRAY_SHARE_LINKS),
         Source("https://raw.githubusercontent.com/3000S-HTTP/sNSub/main/output/best59_base64.txt", Kind.XRAY_SHARE_LINKS),
+        Source("https://raw.githubusercontent.com/coldwater-10/V2ray-Config/main/Sub7.txt", Kind.XRAY_SHARE_LINKS),
 
         Source("https://raw.githubusercontent.com/Delta-Kronecker/Tor-Bridges-Collector/main/bridge/obfs4_tested.txt", Kind.OBFS4_BRIDGES),
         Source("https://raw.githubusercontent.com/Delta-Kronecker/Tor-Bridges-Collector/main/bridge/obfs4_72h.txt", Kind.OBFS4_BRIDGES),
