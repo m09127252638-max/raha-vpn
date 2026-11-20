@@ -117,6 +117,18 @@ class XrayConfigBuilderTest {
     }
 
     @Test
+    fun rejectsUnsupportedCustomTcpHeader() {
+        try {
+            XrayConfigBuilder.build(
+                "vless://$uuid@edge.example:443?encryption=none&security=none&type=tcp&headerType=http"
+            )
+            throw AssertionError("Custom HTTP TCP header must not be silently ignored")
+        } catch (_: IllegalArgumentException) {
+            // Expected: the app must not label a silently altered link as usable.
+        }
+    }
+
+    @Test
     fun neverEnablesInsecureTlsByDefault() {
         val root = JSONObject(XrayConfigBuilder.build(
             "trojan://secret@edge.example:443?security=tls"
