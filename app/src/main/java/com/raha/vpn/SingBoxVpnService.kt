@@ -119,7 +119,8 @@ class SingBoxVpnService : VpnService() {
             val platform = createPlatformInterface()
             val handler = object : CommandServerHandler {
                 override fun serviceStop() {
-                    val stopId = latestStartId
+                    // Bind this callback to the start request that created its CommandServer.
+                    val stopId = startId
                     executor.execute {
                         // A delayed stop from an older CommandServer must not tear
                         // down a newer connection request queued in the meantime.
