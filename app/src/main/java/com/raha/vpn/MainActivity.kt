@@ -151,10 +151,10 @@ fun RahaApp() {
                         val isAnyConnected = torConnected || vpnConnected
                         Text(
                             when {
-                                torConnected -> "اتصال Tor برقرار است"
                                 vpnConnected && isObfs4Selected -> "تونل سراسری Tor فعال است"
                                 vpnConnected -> "تونل سراسری VPN فعال است"
                                 torConnected && isObfs4Selected -> "پل Tor آماده؛ تونل سراسری قطع است"
+                                torConnected -> "پروکسی Tor آماده است"
                                 torConnecting -> "در حال اتصال به پل obfs4..."
                                 vpnConnecting -> "در حال راه‌اندازی تونل VPN..."
                                 isObfs4Selected -> "آماده اتصال با پل obfs4"
@@ -235,7 +235,6 @@ fun RahaApp() {
                                         }
                                     }
                                 }
-                            },
                             },
                             enabled = !torConnecting && !vpnConnecting &&
                                 (isAnyConnected || isObfs4Selected || isSingBoxSupported),
