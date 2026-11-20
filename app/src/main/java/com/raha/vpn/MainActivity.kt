@@ -235,7 +235,9 @@ fun RahaApp() {
                                                     torConnected = true
                                                     val config = SingBoxConfigBuilder.buildTorSocks()
                                                     requestSingBoxTunnel(config)
-                                                } catch (error: Throwable) {
+                                                } catch (cancelled: CancellationException) {
+                                                    throw cancelled
+                                                } catch (error: Exception) {
                                                     torConnected = false
                                                     message = "راه‌اندازی پل یا تونل Tor ناموفق بود: " +
                                                         (error.message ?: "خطای ناشناخته")
