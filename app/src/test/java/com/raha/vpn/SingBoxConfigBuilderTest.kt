@@ -72,6 +72,33 @@ class SingBoxConfigBuilderTest {
         assertEquals("proxy", config.getJSONObject("route").getString("final"))
     }
 
+
+    @Test
+    fun buildsHysteria2SalamanderTunnel() {
+        val link = "hysteria2://hy2-secret@hy2.example.net:443?sni=cdn.example.net&obfs=salamander&obfs-password=mask-secret"
+        val config = JSONObject(SingBoxConfigBuilder.build(link))
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("hysteria2", outbound.getString("type"))
+        assertEquals("hy2.example.net", outbound.getString("server"))
+        assertEquals("hy2-secret", outbound.getString("password"))
+        assertEquals("salamander", outbound.getJSONObject("obfs").getString("type"))
+        assertEquals("cdn.example.net", outbound.getJSONObject("tls").getString("server_name"))
+    }
+
+    @Test
+    fun buildsTuicTunnelWithSafeZeroRttDefault() {
+        val link = "tuic://123e4567-e89b-12d3-a456-426614174000:tuic-secret@tuic.example.net:443?congestion_control=bbr&udp_relay_mode=quic&sni=front.example.net"
+        val config = JSONObject(SingBoxConfigBuilder.build(link))
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("tuic", outbound.getString("type"))
+        assertEquals("123e4567-e89b-12d3-a456-426614174000", outbound.getString("uuid"))
+        assertEquals("tuic-secret", outbound.getString("password"))
+        assertEquals("bbr", outbound.getString("congestion_control"))
+        assertEquals("quic", outbound.getString("udp_relay_mode"))
+        assertFalse(outbound.getBoolean("zero_rtt_handshake"))
+        assertEquals("front.example.net", outbound.getJSONObject("tls").getString("server_name"))
+    }
+
     @Test(expected = IllegalStateException::class)
     fun rejectsUnsupportedProtocolForDeviceTunnel() {
         SingBoxConfigBuilder.build("wireguard://not-supported")
