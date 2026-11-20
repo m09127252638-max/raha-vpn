@@ -111,9 +111,14 @@ object PublicConfigSearch {
 
         val compact = raw.filterNot { it.isWhitespace() }
         if (compact.isBlank()) return ""
-        return runCatching {
-            String(Base64.decode(compact, Base64.DEFAULT), Charsets.UTF_8)
-        }.getOrDefault("")
+        val decoded = runCatching {
+            Base64.decode(compact, Base64.DEFAULT)
+        }.recoverCatching {
+            Base64.decode(compact, Base64.URL_SAFE or Base64.NO_WRAP)
+        }.getOrNull() ?: return ""
+        return String(decoded, Charsets.UTF_8)
+            .takeIf { text -> !text.trimStart().startsWith("<!doctype", true) && !text.trimStart().startsWith("<html", true) }
+            .orEmpty()
     }
 
     private fun isUsableCandidate(line: String, kind: Kind): Boolean {
