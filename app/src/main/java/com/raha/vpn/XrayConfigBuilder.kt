@@ -52,6 +52,15 @@ object XrayConfigBuilder {
 
         val proxy = JSONObject(sourceOutbounds.getJSONObject(0).toString())
             .put("tag", "proxy")
+        // Resolve the proxy server hostname through Xray's built-in DNS module.
+        // This avoids Android/system DNS before the tunnel is established.
+        val proxyStream = proxy.optJSONObject("streamSettings") ?: JSONObject().also {
+            proxy.put("streamSettings", it)
+        }
+        val proxySockopt = proxyStream.optJSONObject("sockopt") ?: JSONObject().also {
+            proxyStream.put("sockopt", it)
+        }
+        proxySockopt.put("domainStrategy", "UseIP")
         val outbounds = JSONArray()
             .put(proxy)
             .put(JSONObject()
@@ -98,8 +107,8 @@ object XrayConfigBuilder {
             .put("outbounds", outbounds)
             .put("dns", JSONObject()
                 .put("servers", JSONArray()
-                    .put("https://1.1.1.1/dns-query")
-                    .put("https://8.8.8.8/dns-query"))
+                    .put("https+local://1.1.1.1/dns-query")
+                    .put("https+local://8.8.8.8/dns-query"))
                 .put("queryStrategy", "UseIP"))
             .put("routing", JSONObject()
                 .put("domainStrategy", "AsIs")
