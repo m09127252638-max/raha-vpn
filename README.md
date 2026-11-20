@@ -9,23 +9,25 @@
 - بررسی دسترسی DNS-over-HTTPS از طریق Cloudflare و Google
 - دریافت فهرست لینک‌های عمومی V2Ray و پل‌های obfs4 از منابع ثالث
 - اعتبارسنجی پل obfs4 و راه‌اندازی Tor Android با IPtProxy
-- تبدیل لینک‌های VLESS، VMess و Trojan به پیکربندی sing-box
+- تبدیل لینک‌های VLESS، VMess، Trojan، Shadowsocks، Hysteria2 و TUIC به پیکربندی sing-box
 - سرویس Android VpnService، ساخت TUN و رابط پلتفرم sing-box
 - رابط شبکه اندروید برای محافظت سوکت‌ها در برابر loop و پایش رابط شبکه پیش‌فرض
 - مسیر اتصال Tor/obfs4 از SOCKS محلی به تونل سراسری sing-box
 
 ## وضعیت ساخت و آزمایش
-هستهٔ ترکیبی sing-box نسخه 1.14.4 و IPtProxy نسخه 5.8.1 در GitHub Actions با موفقیت ساخته شده است. ساخت Gradle در اجرای قبلی به‌دلیل فعال نبودن تولید BuildConfig متوقف شد؛ تنظیم buildConfig = true اصلاح و ثبت شده است. اجرای CI مربوط به اصلاحات جدید باید کامپایل Kotlin، تست‌های واحد و تولید APK را تأیید کند.
+هستهٔ ترکیبی sing-box نسخه 1.14.4 و IPtProxy نسخه 5.8.1، تست‌های واحد و ساخت APK در GitHub Actions با موفقیت اجرا شده‌اند. این تأیید فقط مربوط به ساخت است و جایگزین آزمایش روی دستگاه واقعی نیست.
 
 **هنوز APK نهایی و اتصال واقعی روی دستگاه اندرویدی تأیید نشده‌اند.** موفقیت ساخت AAR به معنی اثبات کارکرد VPN نیست. پس از عبور CI، آزمایش مجوز VPN، راه‌اندازی/قطع تونل، DNS، IPv4/IPv6، تغییر شبکه و اتصال واقعی هر پروتکل لازم است.
 
 ## پشتیبانی فعلی پروتکل‌ها
-- VLESS: TCP، WebSocket و gRPC؛ TLS و Reality در مبدل فعلی
-- VMess: TCP، WebSocket و gRPC؛ TLS در مبدل فعلی
-- Trojan: TCP، WebSocket و gRPC؛ TLS در مبدل فعلی
+- VLESS: TCP، WebSocket و gRPC؛ TLS و Reality
+- VMess: TCP، WebSocket و gRPC؛ TLS
+- Trojan: TCP، WebSocket و gRPC؛ TLS
 - Shadowsocks: لینک‌های SIP002 و قالب قدیمی، بدون پلاگین جانبی
-- Tor/obfs4: راه‌اندازی پل و عبور ترافیک از SOCKS محلی به تونل sing-box در مسیر پیاده‌سازی؛ نیازمند تست عملی
-- WireGuard، Hysteria2، TUIC و سایر لینک‌های ذخیره‌شده هنوز به مبدل تونل متصل نشده‌اند.
+- Hysteria2: لینک‌های hysteria2:// و hy2://، TLS و obfs salamander
+- TUIC: لینک tuic://، TLS، کنترل ازدحام و حالت UDP relay
+- Tor/obfs4: راه‌اندازی پل و عبور ترافیک از SOCKS محلی به تونل sing-box؛ نیازمند تست عملی
+- WireGuard و سایر لینک‌های ذخیره‌شده هنوز به مبدل تونل متصل نشده‌اند.
 
 کانفیگ‌های عمومی ممکن است از کار افتاده یا ناامن باشند؛ آنلاین بودن یا قابل‌اتصال بودن آن‌ها تضمین نمی‌شود. بررسی DNS فقط دسترسی DNS را آزمایش می‌کند و جایگزین VPN نیست.
 
