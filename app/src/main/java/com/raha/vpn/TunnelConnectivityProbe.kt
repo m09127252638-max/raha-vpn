@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.SystemClock
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -40,7 +41,8 @@ internal object TunnelConnectivityProbe {
         val startedAt = SystemClock.elapsedRealtime()
         var connection: HttpURLConnection? = null
         return try {
-            connection = (URL(TRACE_URL).openConnection() as HttpURLConnection).apply {
+            val vpnNetwork = activeNetwork ?: error("شبکهٔ VPN در دسترس نیست")
+            connection = (vpnNetwork.openConnection(URL(TRACE_URL)) as HttpURLConnection).apply {
                 connectTimeout = 7_000
                 readTimeout = 7_000
                 requestMethod = "GET"
@@ -52,9 +54,17 @@ internal object TunnelConnectivityProbe {
             val status = connection.responseCode
             if (status !in 200..299) error("HTTP $status")
             val body = connection.inputStream.use { input ->
-                val bytes = input.readNBytes(MAX_RESPONSE_BYTES + 1)
-                if (bytes.size > MAX_RESPONSE_BYTES) error("پاسخ آزمایش بیش از حد بزرگ بود")
-                bytes.toString(Charsets.UTF_8)
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (output.size() + count > MAX_RESPONSE_BYTES) {
+                        error("پاسخ آزمایش بیش از حد بزرگ بود")
+                    }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray().toString(Charsets.UTF_8)
             }
             val exitIp = parseTraceExitIp(body)
             if (exitIp == null) {
