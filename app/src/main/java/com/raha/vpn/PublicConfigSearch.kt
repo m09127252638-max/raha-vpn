@@ -10,7 +10,11 @@ object PublicConfigSearch {
         "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
         "https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt",
         "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_tested.txt",
-        "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_72h.txt"
+        "https://raw.githubusercontent.com/center2055/OnionHop-Bridges-Collector/main/bridge/obfs4_72h.txt",
+        // Independently maintained, frequently refreshed public feeds.
+        "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt",
+        "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt",
+        "https://raw.githubusercontent.com/zhuhaiuk/free-nodes/main/nodes.txt"
     )
 
     fun fetch(): List<String> {
