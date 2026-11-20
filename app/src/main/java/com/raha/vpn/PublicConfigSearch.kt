@@ -134,5 +134,5 @@ object PublicConfigSearch {
     private const val MAX_SOURCE_BYTES = 1_500_000
     private const val MAX_PER_SOURCE_RESULTS = 350
     private const val MAX_TOTAL_RESULTS = 1_500
-    private val SUPPORTED_XRAY_SCHEMES = setOf("vless", "vmess", "trojan")
+    private val SUPPORTED_XRAY_SCHEMES = setOf("vless", "trojan")
 }
