@@ -18,7 +18,6 @@ class XrayCoreManager(context: Context) {
     private var configFile: File? = null
     private var logFile: File? = null
 
-    @Synchronized
     suspend fun start(rawConfig: String, socksPort: Int = DEFAULT_SOCKS_PORT): Int {
         stop()
         val configJson = XrayConfigBuilder.build(rawConfig, socksPort)
