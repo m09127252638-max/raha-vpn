@@ -13,6 +13,8 @@ object SingBoxConfigBuilder {
     fun build(raw: String): String {
         val normalized = raw.trim()
         if (normalized.startsWith("ss://", true)) return buildShadowsocks(normalized)
+        if (normalized.startsWith("hysteria2://", true) || normalized.startsWith("hy2://", true)) return buildHysteria2(normalized)
+        if (normalized.startsWith("tuic://", true)) return buildTuic(normalized)
         val xray = JSONObject(XrayConfigBuilder.build(raw))
         val xrayOutbound = xray.getJSONArray("outbounds").getJSONObject(0)
         val protocol = xrayOutbound.getString("protocol")
@@ -106,6 +108,79 @@ object SingBoxConfigBuilder {
         outbound.put("domain_resolver", "local-dns")
         return tunnelConfig(outbound)
     }
+
+
+    private fun buildHysteria2(link: String): String {
+        val uri = Uri.parse(link)
+        val host = uri.host?.takeIf { it.isNotBlank() } ?: error("آدرس سرور Hysteria2 وجود ندارد")
+        val port = uri.port.takeIf { it in 1..65535 } ?: error("پورت Hysteria2 معتبر نیست")
+        val password = uri.userInfo?.let(Uri::decode)?.takeIf { it.isNotBlank() }
+            ?: error("گذرواژه Hysteria2 وجود ندارد")
+        val query = queryParameters(uri)
+        val tls = JSONObject().put("enabled", true)
+            .put("server_name", query["sni"]?.takeIf { it.isNotBlank() } ?: host)
+        query["alpn"]?.takeIf { it.isNotBlank() }?.let {
+            tls.put("alpn", JSONArray(it.split(',').map(String::trim).filter(String::isNotBlank)))
+        }
+        query["insecure"]?.let {
+            require(it == "0" || it == "1" || it.equals("true", true) || it.equals("false", true)) { "مقدار insecure در Hysteria2 معتبر نیست" }
+            if (it == "1" || it.equals("true", true)) tls.put("insecure", true)
+        }
+        val outbound = JSONObject()
+            .put("type", "hysteria2").put("tag", "proxy")
+            .put("server", host).put("server_port", port)
+            .put("password", password).put("tls", tls)
+            .put("domain_resolver", "local-dns")
+        val obfsType = query["obfs"]?.takeIf { it.isNotBlank() }
+        val obfsPassword = query["obfs-password"]?.takeIf { it.isNotBlank() }
+        if (obfsType != null || obfsPassword != null) {
+            require(obfsType == "salamander" && obfsPassword != null) {
+                "تنظیمات obfs در Hysteria2 باید salamander و دارای گذرواژه باشد"
+            }
+            outbound.put("obfs", JSONObject().put("type", "salamander").put("password", obfsPassword))
+        }
+        return tunnelConfig(outbound)
+    }
+
+    private fun buildTuic(link: String): String {
+        val uri = Uri.parse(link)
+        val host = uri.host?.takeIf { it.isNotBlank() } ?: error("آدرس سرور TUIC وجود ندارد")
+        val port = uri.port.takeIf { it in 1..65535 } ?: error("پورت TUIC معتبر نیست")
+        val credentials = uri.userInfo?.let(Uri::decode) ?: error("اطلاعات ورود TUIC وجود ندارد")
+        val uuid = credentials.substringBefore(':').takeIf { it.isNotBlank() }
+            ?: error("UUID در لینک TUIC وجود ندارد")
+        require(Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$").matches(uuid)) {
+            "UUID در لینک TUIC معتبر نیست"
+        }
+        val password = credentials.substringAfter(':', "").takeIf { it.isNotBlank() }
+            ?: error("گذرواژه TUIC وجود ندارد")
+        val query = queryParameters(uri)
+        val congestion = query["congestion_control"]?.lowercase() ?: "cubic"
+        require(congestion in setOf("cubic", "new_reno", "bbr")) { "الگوریتم کنترل ازدحام TUIC معتبر نیست" }
+        val relayMode = query["udp_relay_mode"]?.lowercase() ?: "native"
+        require(relayMode in setOf("native", "quic")) { "حالت UDP در TUIC معتبر نیست" }
+        val tls = JSONObject().put("enabled", true)
+            .put("server_name", query["sni"]?.takeIf { it.isNotBlank() } ?: host)
+        query["alpn"]?.takeIf { it.isNotBlank() }?.let {
+            tls.put("alpn", JSONArray(it.split(',').map(String::trim).filter(String::isNotBlank)))
+        } ?: tls.put("alpn", JSONArray().put("h3"))
+        query["allow_insecure"]?.let {
+            require(it == "0" || it == "1" || it.equals("true", true) || it.equals("false", true)) { "مقدار allow_insecure در TUIC معتبر نیست" }
+            if (it == "1" || it.equals("true", true)) tls.put("insecure", true)
+        }
+        val outbound = JSONObject()
+            .put("type", "tuic").put("tag", "proxy")
+            .put("server", host).put("server_port", port)
+            .put("uuid", uuid).put("password", password)
+            .put("congestion_control", congestion).put("udp_relay_mode", relayMode)
+            .put("zero_rtt_handshake", false).put("tls", tls)
+            .put("domain_resolver", "local-dns")
+        query["heartbeat"]?.takeIf { it.isNotBlank() }?.let { outbound.put("heartbeat", it) }
+        return tunnelConfig(outbound)
+    }
+
+    private fun queryParameters(uri: Uri): Map<String, String> =
+        uri.queryParameterNames.associateWith { uri.getQueryParameter(it).orEmpty() }
 
     private fun buildShadowsocks(link: String): String {
         val uri = Uri.parse(link)
