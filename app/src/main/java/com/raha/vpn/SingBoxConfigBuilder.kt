@@ -177,6 +177,7 @@ object SingBoxConfigBuilder {
             .put("mtu", iface["mtu"]?.toIntOrNull()?.also { require(it in 576..9000) } ?: 1408)
             .put("address", JSONArray(addresses))
             .put("private_key", privateKey)
+            .put("domain_resolver", "local-dns")
             .put("peers", peerArray)
         return tunnelConfig(JSONObject().put("type", "direct").put("tag", "wg-placeholder"), JSONArray().put(endpoint), "wg-ep")
     }
