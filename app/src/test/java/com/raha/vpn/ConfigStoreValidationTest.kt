@@ -32,6 +32,8 @@ class ConfigStoreValidationTest {
         assertTrue(ConfigStore.isSupported("Bridge $validObfs4"))
         assertTrue(ConfigStore.isSupported("BRIDGE $validObfs4"))
         assertTrue(ConfigStore.isSupported("bridge $validObfs4"))
+        assertTrue(ConfigStore.isSupported(validObfs4.replaceFirst("obfs4", "OBFS4")))
+        assertTrue(ConfigStore.isSupported("Bridge " + validObfs4.replaceFirst("obfs4", "OBFS4")))
     }
 
     @Test
