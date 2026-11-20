@@ -34,7 +34,21 @@ class XrayTunConfigTest {
         assertEquals("hmag0", inbound.getJSONObject("settings").getString("name"))
 
         val outbounds = root.getJSONArray("outbounds")
-        assertEquals("proxy", outbounds.getJSONObject(0).getString("tag"))
+        val proxy = outbounds.getJSONObject(0)
+        assertEquals("proxy", proxy.getString("tag"))
+        assertEquals(
+            "edge.example",
+            proxy.getJSONObject("settings").getJSONArray("vnext")
+                .getJSONObject(0).getString("address")
+        )
+        assertEquals(
+            "UseIP",
+            proxy.getJSONObject("streamSettings").getJSONObject("sockopt")
+                .getString("domainStrategy")
+        )
+        val dnsServers = root.getJSONObject("dns").getJSONArray("servers")
+        assertEquals("https+local://1.1.1.1/dns-query", dnsServers.getString(0))
+        assertEquals("https+local://8.8.8.8/dns-query", dnsServers.getString(1))
         assertEquals("dns-out", outbounds.getJSONObject(1).getString("tag"))
         assertEquals("direct", outbounds.getJSONObject(2).getString("tag"))
         assertEquals("block", outbounds.getJSONObject(3).getString("tag"))
