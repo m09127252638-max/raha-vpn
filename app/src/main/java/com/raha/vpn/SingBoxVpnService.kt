@@ -33,9 +33,9 @@ class SingBoxVpnService : VpnService() {
     @Volatile private var latestStartId: Int = 0
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        latestStartId = startId
         when (intent?.action) {
             ACTION_STOP -> {
+                latestStartId = startId
                 executor.execute {
                     stopTunnel()
                     stopSelfResult(startId)
@@ -51,6 +51,7 @@ class SingBoxVpnService : VpnService() {
                 return START_NOT_STICKY
             }
             ACTION_START -> {
+                latestStartId = startId
                 val config = intent.getStringExtra(EXTRA_CONFIG)
                 if (config.isNullOrBlank()) {
                     stopSelf(startId)
