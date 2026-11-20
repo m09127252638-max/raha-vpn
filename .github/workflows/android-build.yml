@@ -27,6 +27,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.4'
+          cache: false
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android NDK
+        run: |
+          sdkmanager --install "ndk;29.0.14206865"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Build combined sing-box and obfs4 runtime
+        env:
+          GOPRIVATE: gitlab.torproject.org
+        run: bash scripts/build-android-runtime.sh
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
