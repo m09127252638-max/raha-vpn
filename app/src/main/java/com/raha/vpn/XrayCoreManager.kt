@@ -3,6 +3,7 @@ package com.raha.vpn
 import android.net.VpnService
 import libXray.DialerController
 import libXray.LibXray
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -52,7 +53,8 @@ class XrayCoreManager {
         }
         return runCatching {
             val parsed = JSONObject(XrayConfigBuilder.build(entries.single()))
-            JSONObject().put("outbounds", parsed.getJSONArray("outbounds"))
+            val outbound = parsed.getJSONArray("outbounds").getJSONObject(0)
+            JSONObject().put("outbounds", JSONArray().put(JSONObject(outbound.toString())))
         }.getOrNull()
     }
 
