@@ -71,16 +71,6 @@ class TorBridgeManager(private val context: Context) {
 
     fun isConnected(): Boolean = started
 
-    internal fun buildTorrc(bridge: String, transportAddress: String): String =
-        listOf(
-            "UseBridges 1",
-            "ClientTransportPlugin obfs4 socks5 $transportAddress",
-            "Bridge $bridge",
-            "SocksPort 0",
-            "SocksPort 127.0.0.1:19050",
-            "SafeSocks 1"
-        ).joinToString("\n", postfix = "\n")
-
     /**
      * STATUS_ON only means the Android service started. Wait until a SOCKS5
      * CONNECT succeeds through Tor, which requires a working circuit and exit.
@@ -119,6 +109,16 @@ class TorBridgeManager(private val context: Context) {
     }
 
     companion object {
+        internal fun buildTorrc(bridge: String, transportAddress: String): String =
+            listOf(
+                "UseBridges 1",
+                "ClientTransportPlugin obfs4 socks5 $transportAddress",
+                "Bridge $bridge",
+                "SocksPort 0",
+                "SocksPort 127.0.0.1:19050",
+                "SafeSocks 1"
+            ).joinToString("\n", postfix = "\n")
+
         internal fun consumeSocks5ConnectReply(input: InputStream): Boolean = runCatching {
             if (input.read() != 5) return@runCatching false
             if (input.read() != 0) return@runCatching false
