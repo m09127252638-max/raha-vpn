@@ -86,7 +86,7 @@ class SingBoxVpnService : VpnService() {
 
     private fun startTunnel(config: String, startId: Int) {
         try {
-            stopTunnel()
+            releaseTunnel()
             val base = filesDir
             val setup = SetupOptions().apply {
                 basePath = base.absolutePath
@@ -200,12 +200,16 @@ class SingBoxVpnService : VpnService() {
         } as NetworkInterfaceIterator
     }
 
-    private fun stopTunnel() {
+    private fun releaseTunnel() {
         runCatching { commandServer?.closeService() }
         runCatching { commandServer?.close() }
         commandServer = null
         runCatching { tunDescriptor?.close() }
         tunDescriptor = null
+    }
+
+    private fun stopTunnel() {
+        releaseTunnel()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
