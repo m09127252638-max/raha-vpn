@@ -58,7 +58,7 @@ fun RahaApp() {
     val context = LocalContext.current
     val configStore = remember(context) { ConfigStore(context) }
     val savedServers = remember(configStore) { configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) } }
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(if (savedServers.isEmpty()) 2 else 0) }
     var configText by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("برای شروع، یک کانفیگ به برنامه اضافه کن.") }
     var servers by remember { mutableStateOf(savedServers) }
@@ -68,6 +68,26 @@ fun RahaApp() {
     var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
     var configSearching by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        if (savedServers.isEmpty()) {
+            configSearching = true
+            try {
+                val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
+                publicConfigs = found
+                message = if (found.isEmpty()) {
+                    "از منابع عمومی کانفیگی دریافت نشد؛ اتصال اینترنت یا دسترسی به منابع را بررسی کن."
+                } else {
+                    "${found.size} کانفیگ عمومی و پل Tor دریافت شد؛ برای افزودن، گزینه افزودن را بزن."
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                message = "دریافت خودکار کانفیگ ناموفق بود؛ از دکمه جستجوی مجدد استفاده کن."
+            } finally {
+                configSearching = false
+            }
+        }
+    }
     val torBridgeManager = remember(context) { TorBridgeManager(context.applicationContext) }
     var torConnecting by remember { mutableStateOf(false) }
     var torConnected by remember { mutableStateOf(false) }
