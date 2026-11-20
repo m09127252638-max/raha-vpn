@@ -26,7 +26,7 @@ class TorBridgeManager(private val context: Context) {
         require(ConfigStore.isSupported(rawBridge)) { "خط پل obfs4 معتبر نیست." }
         disconnect()
 
-        val bridge = rawBridge.trim().removePrefix("Bridge ").trim()
+        val bridge = rawBridge.trim().replaceFirst(Regex("^Bridge\\s+", RegexOption.IGNORE_CASE), "").trim()
         val controller = Controller(
             context.noBackupFilesDir.resolve("iptproxy-state").absolutePath,
             false,
