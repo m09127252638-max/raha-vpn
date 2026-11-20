@@ -134,6 +134,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(14.dp))
                         val isObfs4Selected = selectedServer?.protocol == "obfs4"
+                        val isSingBoxSupported = selectedServer?.protocol in setOf("vless", "vmess", "trojan")
                         val isAnyConnected = torConnected || vpnConnected
                         Text(
                             when {
@@ -142,7 +143,8 @@ fun RahaApp() {
                                 torConnecting -> "در حال اتصال به پل obfs4..."
                                 vpnConnecting -> "در حال راه‌اندازی تونل VPN..."
                                 isObfs4Selected -> "آماده اتصال با پل obfs4"
-                                selectedServer != null -> "آماده اتصال با ${selectedServer?.protocol?.uppercase()}"
+                                isSingBoxSupported -> "آماده اتصال با ${selectedServer?.protocol?.uppercase()}"
+                                selectedServer != null -> "این پروتکل هنوز آماده اتصال نیست"
                                 else -> "ابتدا یک سرور اضافه کن"
                             },
                             fontSize = 18.sp,
@@ -152,9 +154,10 @@ fun RahaApp() {
                             when {
                                 torConnected -> "پروکسی محلی Tor: socks5://127.0.0.1:19050"
                                 vpnConnected -> "ترافیک دستگاه از تونل sing-box عبور می‌کند."
-                                selectedServer == null -> "یک کانفیگ VLESS، VMess یا Trojan اضافه کن."
+                                selectedServer == null -> "یک کانفیگ VLESS، VMess، Trojan یا پل obfs4 اضافه کن."
                                 isObfs4Selected -> "اتصال Tor با پل obfs4"
-                                else -> "سرور انتخاب‌شده: ${selectedServer?.address}"
+                                isSingBoxSupported -> "سرور انتخاب‌شده: ${selectedServer?.address}"
+                                else -> "فعلاً فقط VLESS، VMess، Trojan و obfs4 قابل انتخاب‌اند."
                             },
                             color = Muted,
                             fontSize = 12.sp
@@ -215,7 +218,7 @@ fun RahaApp() {
                                 }
                             },
                             enabled = !torConnecting && !vpnConnecting &&
-                                (isAnyConnected || selectedServer != null),
+                                (isAnyConnected || isObfs4Selected || isSingBoxSupported),
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
                         ) {
@@ -224,7 +227,8 @@ fun RahaApp() {
                                     torConnecting || vpnConnecting -> "در حال اتصال..."
                                     torConnected || vpnConnected -> "قطع اتصال"
                                     isObfs4Selected -> "اتصال با obfs4"
-                                    selectedServer != null -> "اتصال VPN سراسری"
+                                    isSingBoxSupported -> "اتصال VPN سراسری"
+                                    selectedServer != null -> "پروتکل پشتیبانی‌نشده"
                                     else -> "سروری انتخاب نشده"
                                 }
                             )
