@@ -358,6 +358,43 @@ fun RahaApp() {
                         OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless://، hysteria2://، tuic://، فایل WireGuard یا obfs4 ...") }, minLines = 4)
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(
+                            onClick = {
+                                val subscriptionUrl = configText.trim()
+                                if (!subscriptionUrl.startsWith("https://", ignoreCase = true)) {
+                                    message = "برای دریافت سابسکریپشن، لینک HTTPS را در کادر بالا وارد کن."
+                                } else if (!configSearching) {
+                                    configSearching = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val found = withContext(Dispatchers.IO) {
+                                                PublicConfigSearch.fetchSubscription(subscriptionUrl)
+                                            }
+                                            if (found.isEmpty()) {
+                                                message = "از این لینک کانفیگ پشتیبانی‌شده‌ای دریافت نشد؛ ممکن است فرمت آن Clash یا لینک نامعتبر باشد."
+                                            } else {
+                                                found.forEach { configStore.add(it) }
+                                                servers = configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) }
+                                                selectedServer = servers.firstOrNull { it.rawConfig == found.first() } ?: servers.firstOrNull()
+                                                configText = ""
+                                                message = "${found.size} کانفیگ از سابسکریپشن دریافت و ذخیره شد؛ زنده‌بودن سرورها هنوز بررسی نشده است."
+                                                selectedTab = 0
+                                            }
+                                        } catch (cancelled: CancellationException) {
+                                            throw cancelled
+                                        } catch (_: Exception) {
+                                            message = "دریافت سابسکریپشن ناموفق بود؛ لینک HTTPS یا دسترسی شبکه را بررسی کن."
+                                        } finally {
+                                            configSearching = false
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !configSearching,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (configSearching) "در حال دریافت سابسکریپشن..." else "دریافت و ذخیره از لینک سابسکریپشن")
+                        }
+                        OutlinedButton(
                             onClick = { wireGuardFileLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*")) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
