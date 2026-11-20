@@ -113,17 +113,17 @@ object PublicConfigSearch {
      */
     fun fetchSubscription(subscriptionUrl: String): List<String> {
         require(subscriptionUrl.length <= 2048) { "Subscription URL is too long" }
-        val parsed = URL(subscriptionUrl.trim())
-        require(parsed.protocol.equals("https", ignoreCase = true)) {
+        val parsed = java.net.URI(subscriptionUrl.trim())
+        require(parsed.scheme.equals("https", ignoreCase = true)) {
             "Only HTTPS subscription URLs are accepted"
         }
-        require(parsed.host.isNotBlank() && parsed.userInfo == null) {
+        require(!parsed.host.isNullOrBlank() && parsed.rawUserInfo == null) {
             "Invalid subscription URL"
         }
         require(!parsed.host.equals("localhost", ignoreCase = true)) {
             "Local subscription URLs are not accepted"
         }
-        return fetchSource(parsed.toString())
+        return fetchSource(parsed.toURL().toString())
     }
 
     internal fun prioritizeResults(resultsBySource: List<List<String>>): List<String> {
