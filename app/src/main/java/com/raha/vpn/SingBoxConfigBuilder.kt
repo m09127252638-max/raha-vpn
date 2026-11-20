@@ -99,6 +99,22 @@ object SingBoxConfigBuilder {
             else -> error("انتقال $network برای تونل سراسری پشتیبانی نمی‌شود")
         }
 
+        outbound.put("domain_resolver", "local-dns")
+        return tunnelConfig(outbound)
+    }
+
+    fun buildTorSocks(port: Int = 19050): String {
+        require(port in 1..65535)
+        val outbound = JSONObject()
+            .put("type", "socks")
+            .put("tag", "proxy")
+            .put("version", "5")
+            .put("server", "127.0.0.1")
+            .put("server_port", port)
+        return tunnelConfig(outbound)
+    }
+
+    private fun tunnelConfig(outbound: JSONObject): String {
         val tun = JSONObject()
             .put("type", "tun")
             .put("tag", "tun-in")
