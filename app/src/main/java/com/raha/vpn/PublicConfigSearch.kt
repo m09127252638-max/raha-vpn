@@ -98,12 +98,10 @@ object PublicConfigSearch {
     private fun decodeBase64Subscription(value: String): String? {
         val compact = value.filterNot(Char::isWhitespace)
         if (compact.length < 16 || !compact.matches(Regex("[A-Za-z0-9_+/=-]+"))) return null
-        val decoded = runCatching {
-            String(
-                Base64.decode(compact, Base64.DEFAULT or Base64.URL_SAFE),
-                Charsets.UTF_8
-            )
-        }.getOrNull() ?: return null
+        val decodedBytes = runCatching { Base64.decode(compact, Base64.DEFAULT) }
+            .recoverCatching { Base64.decode(compact, Base64.URL_SAFE) }
+            .getOrNull() ?: return null
+        val decoded = String(decodedBytes, Charsets.UTF_8)
         // Reject arbitrary binary or unrelated text; only accept a decoded body
         // containing at least one supported share URI.
         return decoded.takeIf(::containsSupportedUri)
