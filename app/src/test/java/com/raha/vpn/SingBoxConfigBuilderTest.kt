@@ -99,6 +99,36 @@ class SingBoxConfigBuilderTest {
         assertEquals("front.example.net", outbound.getJSONObject("tls").getString("server_name"))
     }
 
+
+    @Test
+    fun buildsWireGuardEndpointFromStandardConfig() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            Address = 10.66.0.2/32, fd00::2/128
+            DNS = 1.1.1.1
+
+            [Peer]
+            PublicKey = $key
+            PresharedKey = $key
+            Endpoint = wg.example.net:51820
+            AllowedIPs = 0.0.0.0/0, ::/0
+            PersistentKeepalive = 25
+        """.trimIndent()
+        val config = JSONObject(SingBoxConfigBuilder.build(raw))
+        val endpoint = config.getJSONArray("endpoints").getJSONObject(0)
+        val peer = endpoint.getJSONArray("peers").getJSONObject(0)
+        assertEquals("wireguard", endpoint.getString("type"))
+        assertEquals("wg-ep", endpoint.getString("tag"))
+        assertEquals("10.66.0.2/32", endpoint.getJSONArray("address").getString(0))
+        assertEquals("wg.example.net", peer.getString("address"))
+        assertEquals(51820, peer.getInt("port"))
+        assertEquals(25, peer.getInt("persistent_keepalive_interval"))
+        assertEquals("wg-ep", config.getJSONObject("route").getString("final"))
+        assertEquals("wg-ep", config.getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("detour"))
+    }
+
     @Test(expected = IllegalStateException::class)
     fun rejectsUnsupportedProtocolForDeviceTunnel() {
         SingBoxConfigBuilder.build("wireguard://not-supported")
