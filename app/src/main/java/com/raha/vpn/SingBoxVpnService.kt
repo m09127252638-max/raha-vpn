@@ -120,15 +120,15 @@ class SingBoxVpnService : VpnService() {
                 override fun connectSSHAgent(): Int = -1
             }
             val server = CommandServer(handler, platform)
+            commandServer = server
             server.start()
             server.startOrReloadService(config, OverrideOptions())
-            commandServer = server
             broadcastState(connected = true)
             Log.i(TAG, "sing-box tunnel started")
         } catch (error: Throwable) {
             Log.e(TAG, "Unable to start sing-box tunnel", error)
             broadcastState(connected = false, error = error.message ?: "خطای راه‌اندازی تونل")
-            stopTunnel()
+            stopTunnel(broadcast = false)
             stopSelf(startId)
         }
     }
@@ -193,9 +193,9 @@ class SingBoxVpnService : VpnService() {
         tunDescriptor = null
     }
 
-    private fun stopTunnel() {
+    private fun stopTunnel(broadcast: Boolean = true) {
         releaseTunnel()
-        broadcastState(connected = false)
+        if (broadcast) broadcastState(connected = false)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
