@@ -29,8 +29,7 @@ class ShareLinkParserTest {
     @Test
     fun buildsTorConfigForObfs4Bridge() {
         val bridge = "obfs4 192.0.2.10:443 0123456789ABCDEF0123456789ABCDEF01234567 cert=YWJjZGVmZ2hpamts iat-mode=0"
-        val torrc = TorBridgeManager(RuntimeEnvironment.getApplication())
-            .buildTorrc(bridge, "127.0.0.1:12345")
+        val torrc = TorBridgeManager.buildTorrc(bridge, "127.0.0.1:12345")
         assertTrue(torrc.contains("UseBridges 1\n"))
         assertTrue(torrc.contains("ClientTransportPlugin obfs4 socks5 127.0.0.1:12345\n"))
         assertTrue(torrc.contains("Bridge $bridge\n"))
