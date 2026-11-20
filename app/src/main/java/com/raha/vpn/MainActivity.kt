@@ -44,7 +44,9 @@ private val Panel = Color(0xFF10243B)
 private val Gold = Color(0xFFFFC857)
 private val Muted = Color(0xFF9BAFC5)
 
-data class Server(val name: String, val address: String, val protocol: String, val rawConfig: String)
+data class Server(val name: String, val address: String, val protocol: String, val rawConfig: String) {
+    val connectable: Boolean get() = protocol in setOf("vless", "trojan", "obfs4")
+}
 private data class PendingVpnRequest(val rawConfig: String, val bridge: String?, val protocol: String)
 
 class MainActivity : ComponentActivity() {
@@ -205,6 +207,8 @@ fun RahaApp() {
                                     val server = selectedServer
                                     if (server == null) {
                                         message = "ابتدا یک سرور انتخاب کن."
+                                    } else if (!server.connectable) {
+                                        message = "این پروتکل هنوز در موتور اتصال پشتیبانی نمی‌شود؛ فعلاً VLESS، Trojan و obfs4 قابل انتخاب هستند."
                                     } else if (server.protocol == "obfs4") {
                                         requestVpnConnection(
                                             PendingVpnRequest(rawConfig = "", bridge = server.rawConfig, protocol = "obfs4")
@@ -216,7 +220,7 @@ fun RahaApp() {
                                     }
                                 }
                             },
-                            enabled = !vpnConnecting && (vpnConnected || selectedServer != null),
+                            enabled = !vpnConnecting && (vpnConnected || selectedServer?.connectable == true),
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
                         ) {
@@ -262,6 +266,7 @@ fun RahaApp() {
                                         Column(Modifier.weight(1f)) {
                                             Text(server.name, fontWeight = FontWeight.SemiBold)
                                             Text(server.protocol + " • " + server.address, color = Muted, fontSize = 12.sp)
+                                            if (!server.connectable) Text("فعلاً قابل اتصال نیست", color = Color(0xFFFF9B8F), fontSize = 11.sp)
                                         }
                                         if (selectedServer == server) Text("انتخاب‌شده", color = Gold, fontSize = 12.sp)
                                         IconButton(onClick = {
