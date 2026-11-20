@@ -71,7 +71,7 @@ internal class SingBoxPlatformInterface(
         return ConnectionOwner().apply {
             userId = uid
             userName = packages.firstOrNull().orEmpty()
-            setAndroidPackageNames(StringArray(packages.iterator()))
+            setAndroidPackageNames(StringArray(packages))
         }
     }
 
@@ -135,14 +135,13 @@ internal class SingBoxPlatformInterface(
                 this.name = name
                 index = native.index
                 mtu = runCatching { native.mtu }.getOrDefault(0)
-                dnsServer = StringArray(properties.dnsServers.mapNotNull { it.hostAddress }.iterator())
+                dnsServer = StringArray(properties.dnsServers.mapNotNull { it.hostAddress })
                 gateway = StringArray(
                     properties.routes
                         .filter { it.destination.prefixLength == 0 }
                         .mapNotNull { it.gateway }
                         .filterNot { it.isAnyLocalAddress }
                         .mapNotNull { it.hostAddress }
-                        .iterator()
                 )
                 addresses = StringArray(native.interfaceAddresses.map { address ->
                     val host = if (address.address is Inet6Address) {
@@ -151,7 +150,7 @@ internal class SingBoxPlatformInterface(
                         address.address.hostAddress
                     }
                     "$host/${address.networkPrefixLength}"
-                }.iterator())
+                })
                 type = when {
                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Libbox.InterfaceTypeWIFI
                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Libbox.InterfaceTypeCellular
@@ -213,10 +212,11 @@ internal class SingBoxPlatformInterface(
         error("Platform bridge is not available in this app")
     }
 
-    private class StringArray(private val iterator: Iterator<String>) : StringIterator {
-        override fun len(): Int = 0
-        override fun hasNext(): Boolean = iterator.hasNext()
-        override fun next(): String = iterator.next()
+    private class StringArray(private val values: List<String>) : StringIterator {
+        private var index = 0
+        override fun len(): Int = values.size
+        override fun hasNext(): Boolean = index < values.size
+        override fun next(): String = values[index++]
     }
 
     private class NetworkInterfaceArray(
