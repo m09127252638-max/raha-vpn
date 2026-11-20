@@ -29,12 +29,31 @@ class XrayCoreManager {
     }
 
     fun convertShareLinksToXrayJson(text: String): JSONObject {
-        val response = invoke(
-            "convertShareLinksToXrayJson",
-            JSONObject().put("text", normalizeShareText(text))
-        )
-        return response.optJSONObject("data")
-            ?: throw IllegalStateException("موتور Xray کانفیگ قابل‌استفاده‌ای پیدا نکرد.")
+        val normalized = normalizeShareText(text)
+        return try {
+            val response = invoke(
+                "convertShareLinksToXrayJson",
+                JSONObject().put("text", normalized)
+            )
+            response.optJSONObject("data")
+                ?: throw IllegalStateException("موتور Xray کانفیگ قابل‌استفاده‌ای پیدا نکرد.")
+        } catch (error: Exception) {
+            // The current libXray share parser accepts VMessAEAD URIs but not
+            // legacy VMessQrCode (vmess://Base64(JSON)). Preserve compatibility
+            // for a single legacy VMess node without weakening other parsing.
+            legacyVmessFallback(normalized) ?: throw error
+        }
+    }
+
+    internal fun legacyVmessFallback(text: String): JSONObject? {
+        val entries = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+        if (entries.size != 1 || !entries.single().startsWith("vmess://", ignoreCase = true)) {
+            return null
+        }
+        return runCatching {
+            val parsed = JSONObject(XrayConfigBuilder.build(entries.single()))
+            JSONObject().put("outbounds", parsed.getJSONArray("outbounds"))
+        }.getOrNull()
     }
 
     fun test(configJson: String) {
