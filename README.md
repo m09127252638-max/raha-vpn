@@ -7,8 +7,9 @@
 - فهرست سرورها و افزودن لینک کانفیگ
 - ذخیره‌سازی لینک‌های کانفیگ با رمزگذاری AES-GCM و کلید Android Keystore
 - بررسی دسترسی DNS-over-HTTPS از طریق Cloudflare و Google
+- آزمایش HTTPS متصل‌شده به شبکهٔ VPN اندروید برای تأیید عبور واقعی درخواست برنامه از تونل؛ این تست به‌تنهایی مسیر تمام برنامه‌ها را اثبات نمی‌کند
 - دریافت فهرست لینک‌های عمومی V2Ray و پل‌های obfs4 از منابع ثالث
-- اعتبارسنجی پل obfs4 و راه‌اندازی Tor Android با IPtProxy
+- اعتبارسنجی پل obfs4 و راه‌اندازی Tor Android با IPtProxy؛ وضعیت آماده فقط پس از موفقیت SOCKS5 CONNECT از مسیر مدار Tor اعلام می‌شود
 - تبدیل لینک‌های VLESS، VMess، Trojan، Shadowsocks، Hysteria2 و TUIC به پیکربندی sing-box
 - واردسازی فایل استاندارد WireGuard با بخش‌های Interface و Peer و تبدیل آن به WireGuard endpoint در sing-box
 - سرویس Android VpnService، ساخت TUN و رابط پلتفرم sing-box
