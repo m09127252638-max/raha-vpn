@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.net.IpPrefix
 import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
@@ -146,6 +147,7 @@ class SingBoxVpnService : VpnService() {
     private fun establishTun(options: TunOptions): Int {
         if (VpnService.prepare(this) != null) error("VPN permission has not been granted")
         val builder = Builder().setSession("H.MAGHSODI").setMtu(options.mtu)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
         val ipv4 = options.inet4Address
         while (ipv4.hasNext()) {
             val prefix = ipv4.next()
@@ -157,10 +159,54 @@ class SingBoxVpnService : VpnService() {
             builder.addAddress(prefix.address(), prefix.prefix())
         }
         if (options.autoRoute) {
-            val dns = options.dnsServerAddress
-            while (dns.hasNext()) builder.addDnsServer(dns.next())
-            builder.addRoute("0.0.0.0", 0)
-            builder.addRoute("::", 0)
+            if (options.dnsMode.value != Libbox.DNSModeDisabled) {
+                val dns = options.dnsServerAddress
+                while (dns.hasNext()) builder.addDnsServer(dns.next())
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val ipv4Routes = options.inet4RouteAddress
+                if (ipv4Routes.hasNext()) {
+                    while (ipv4Routes.hasNext()) {
+                        val route = ipv4Routes.next()
+                        builder.addRoute(IpPrefix(route.address(), route.prefix()))
+                    }
+                } else if (options.inet4Address.hasNext()) {
+                    builder.addRoute("0.0.0.0", 0)
+                }
+
+                val ipv6Routes = options.inet6RouteAddress
+                if (ipv6Routes.hasNext()) {
+                    while (ipv6Routes.hasNext()) {
+                        val route = ipv6Routes.next()
+                        builder.addRoute(IpPrefix(route.address(), route.prefix()))
+                    }
+                } else if (options.inet6Address.hasNext()) {
+                    builder.addRoute("::", 0)
+                }
+
+                val ipv4Excludes = options.inet4RouteExcludeAddress
+                while (ipv4Excludes.hasNext()) {
+                    val route = ipv4Excludes.next()
+                    builder.excludeRoute(IpPrefix(route.address(), route.prefix()))
+                }
+                val ipv6Excludes = options.inet6RouteExcludeAddress
+                while (ipv6Excludes.hasNext()) {
+                    val route = ipv6Excludes.next()
+                    builder.excludeRoute(IpPrefix(route.address(), route.prefix()))
+                }
+            } else {
+                val ipv4Routes = options.inet4RouteRange
+                while (ipv4Routes.hasNext()) {
+                    val route = ipv4Routes.next()
+                    builder.addRoute(route.address(), route.prefix())
+                }
+                val ipv6Routes = options.inet6RouteRange
+                while (ipv6Routes.hasNext()) {
+                    val route = ipv6Routes.next()
+                    builder.addRoute(route.address(), route.prefix())
+                }
+            }
         }
         val descriptor = builder.establish() ?: error("Android refused to establish the VPN interface")
         tunDescriptor?.close()
