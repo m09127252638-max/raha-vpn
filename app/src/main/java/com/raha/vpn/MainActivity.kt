@@ -88,6 +88,31 @@ fun RahaApp() {
         }
     }
 
+    val wireGuardFileLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val imported = runCatching {
+                context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader(Charsets.UTF_8)
+                    ?.use { it.readText() }
+                    ?: error("خواندن فایل ناموفق بود")
+            }.getOrNull()
+            when {
+                imported.isNullOrBlank() -> message = "فایل خالی است یا خوانده نشد."
+                imported.length > 128 * 1024 -> message = "حجم فایل کانفیگ بیش از حد مجاز است."
+                !imported.contains("[Interface]", ignoreCase = true) ||
+                    !imported.contains("[Peer]", ignoreCase = true) ||
+                    !ConfigStore.isSupported(imported) -> message = "فایل انتخاب‌شده، کانفیگ استاندارد WireGuard نیست."
+                else -> {
+                    configText = imported.trim()
+                    selectedTab = 1
+                    message = "فایل WireGuard بارگذاری شد؛ برای ذخیره، افزودن به سرورها را بزن."
+                }
+            }
+        }
+    }
+
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -303,6 +328,13 @@ fun RahaApp() {
                         Text("لینک سرور یا خط کامل obfs4 را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
                         OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless://، hysteria2://، tuic://، فایل WireGuard یا obfs4 ...") }, minLines = 4)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { wireGuardFileLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*")) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("انتخاب فایل WireGuard (.conf)")
+                        }
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
                             val entries = if (configText.contains("[Interface]", ignoreCase = true) && configText.contains("[Peer]", ignoreCase = true)) {
