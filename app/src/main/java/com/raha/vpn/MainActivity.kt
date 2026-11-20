@@ -368,9 +368,13 @@ fun RahaApp() {
                                     }
                                     TextButton(onClick = {
                                         runCatching { configStore.add(raw) }.onSuccess {
-                                            servers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
+                                            val refreshedServers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
+                                            servers = refreshedServers
+                                            selectedServer = refreshedServers.firstOrNull { it.rawConfig == raw }
+                                                ?: selectedServer
+                                                ?: refreshedServers.firstOrNull()
                                             publicConfigs = publicConfigs.filterNot { it == raw }
-                                            message = "کانفیگ ذخیره شد؛ برای شروع دکمه اتصال VPN را بزن."
+                                            message = "کانفیگ ذخیره و انتخاب شد؛ حالا می‌توانی به VPN وصل شوی."
                                         }.onFailure { message = "ذخیره کانفیگ انجام نشد." }
                                     }) { Text("افزودن", color = Gold) }
                                 }
