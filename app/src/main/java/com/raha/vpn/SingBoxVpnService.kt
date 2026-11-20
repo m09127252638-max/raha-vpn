@@ -42,6 +42,14 @@ class SingBoxVpnService : VpnService() {
                 }
                 return START_NOT_STICKY
             }
+            ACTION_QUERY_STATE -> {
+                executor.execute {
+                    val active = commandServer != null
+                    broadcastState(connected = active)
+                    if (!active) stopSelfResult(startId)
+                }
+                return START_NOT_STICKY
+            }
             ACTION_START -> {
                 val config = intent.getStringExtra(EXTRA_CONFIG)
                 if (config.isNullOrBlank()) {
@@ -275,7 +283,14 @@ class SingBoxVpnService : VpnService() {
         const val EXTRA_ERROR = "error"
         private const val ACTION_START = "com.raha.vpn.action.START"
         private const val ACTION_STOP = "com.raha.vpn.action.STOP"
+        private const val ACTION_QUERY_STATE = "com.raha.vpn.action.QUERY_STATE"
         private const val EXTRA_CONFIG = "singbox_config"
+
+        fun refreshState(context: Context) {
+            context.startService(
+                Intent(context, SingBoxVpnService::class.java).setAction(ACTION_QUERY_STATE)
+            )
+        }
 
         fun start(context: Context, singBoxConfig: String) {
             val intent = Intent(context, SingBoxVpnService::class.java)
