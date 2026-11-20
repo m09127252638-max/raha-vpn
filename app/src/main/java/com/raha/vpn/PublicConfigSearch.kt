@@ -17,7 +17,7 @@ object PublicConfigSearch {
     private data class Source(val url: String, val kind: Kind)
 
     // Keep multiple independent maintainers and mirrors. The app currently
-    // connects only VMess, VLESS and Trojan through Xray, plus obfs4 through Tor.
+    // connects VLESS and Trojan through Xray, plus obfs4 through Tor.
     private val sources = listOf(
         Source("https://raw.githubusercontent.com/morpheusadam/v2ray-config/main/subs/bundles/lite.txt", Kind.XRAY_SHARE_LINKS),
         Source("https://cdn.jsdelivr.net/gh/morpheusadam/v2ray-config@main/subs/bundles/lite.txt", Kind.XRAY_SHARE_LINKS),
@@ -27,6 +27,8 @@ object PublicConfigSearch {
         Source("https://raw.githubusercontent.com/ninjastrikers/Nexus-nodes/main/configs/vless.txt", Kind.XRAY_SHARE_LINKS),
         Source("https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt", Kind.XRAY_SHARE_LINKS),
         Source("https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt", Kind.XRAY_SHARE_LINKS),
+        Source("https://raw.githubusercontent.com/Alirewa/v2ray-configs/main/config.txt", Kind.XRAY_SHARE_LINKS),
+        Source("https://raw.githubusercontent.com/3000S-HTTP/sNSub/main/output/best59_base64.txt", Kind.XRAY_SHARE_LINKS),
 
         Source("https://raw.githubusercontent.com/Delta-Kronecker/Tor-Bridges-Collector/main/bridge/obfs4_tested.txt", Kind.OBFS4_BRIDGES),
         Source("https://raw.githubusercontent.com/Delta-Kronecker/Tor-Bridges-Collector/main/bridge/obfs4_72h.txt", Kind.OBFS4_BRIDGES),
