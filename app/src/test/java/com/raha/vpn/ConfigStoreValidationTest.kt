@@ -1,5 +1,6 @@
 package com.raha.vpn
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -67,5 +68,15 @@ class ConfigStoreValidationTest {
         val shortFingerprint = validObfs4.replace("a".repeat(40), "a".repeat(39))
         assertFalse(ConfigStore.isSupported(invalidPort))
         assertFalse(ConfigStore.isSupported(shortFingerprint))
+    }
+    @Test
+    fun prioritizesTorBridgesSoTheyAppearInVisibleSearchResults() {
+        val proxyResults = (1..500).map { "vless://node$it@example.com:443" }
+        val bridge = "obfs4 192.0.2.10:443 " + "a".repeat(40) + " cert=AQID iat-mode=0"
+        val results = PublicConfigSearch.prioritizeResults(listOf(proxyResults, listOf(bridge)))
+
+        assertEquals(bridge, results.first())
+        assertTrue(results.take(25).contains(bridge))
+        assertEquals(results.size, results.distinct().size)
     }
 }
