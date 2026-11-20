@@ -98,8 +98,14 @@ object XrayConfigBuilder {
             .put("outbounds", outbounds)
             .put("dns", JSONObject()
                 .put("servers", JSONArray()
-                    .put("https://1.1.1.1/dns-query")
-                    .put("https://8.8.8.8/dns-query"))
+                    .put(JSONObject()
+                        .put("address", "https://1.1.1.1/dns-query")
+                        // DNS queries must use the Tor proxy in bridge mode;
+                        // direct DoH would bypass the Tor circuit.
+                        .put("tag", if (torMode) "proxy" else "direct"))
+                    .put(JSONObject()
+                        .put("address", "https://8.8.8.8/dns-query")
+                        .put("tag", if (torMode) "proxy" else "direct")))
                 .put("queryStrategy", "UseIP"))
             .put("routing", JSONObject()
                 .put("domainStrategy", "AsIs")
