@@ -1,9 +1,6 @@
 package com.raha.vpn
 
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import libXray.LibXray
 import libXray.PTController
@@ -81,8 +78,10 @@ class TorBridgeManager(private val context: Context) {
             "ClientTransportPlugin obfs4 socks5 $transportAddress",
             "Bridge $bridge",
             "SocksPort 0",
-            "SocksPort 127.0.0.1:19050",
-            "SafeSocks 1"
+            "SocksPort 127.0.0.1:19050"
+            // Do not enable SafeSocks: Xray's encrypted DoH resolver connects to
+            // fixed IP endpoints through this SOCKS port. SafeSocks rejects those
+            // literal-IP destinations even though DNS payloads remain HTTPS-encrypted.
         ).joinToString("\n", postfix = "\n")
 
     private suspend fun awaitTorCircuit() = withTimeout(240_000L) {
