@@ -47,8 +47,22 @@ class XrayTunConfigTest {
                 .getString("domainStrategy")
         )
         val dnsServers = root.getJSONObject("dns").getJSONArray("servers")
-        assertEquals("https+local://1.1.1.1/dns-query", dnsServers.getString(0))
-        assertEquals("https+local://8.8.8.8/dns-query", dnsServers.getString(1))
+        assertEquals(4, dnsServers.length())
+        assertEquals(
+            "https+local://1.1.1.1/dns-query",
+            dnsServers.getJSONObject(0).getString("address")
+        )
+        assertEquals(
+            "full:edge.example",
+            dnsServers.getJSONObject(0).getJSONArray("domains").getString(0)
+        )
+        assertTrue(dnsServers.getJSONObject(0).getBoolean("skipFallback"))
+        assertEquals(
+            "https+local://8.8.8.8/dns-query",
+            dnsServers.getJSONObject(1).getString("address")
+        )
+        assertEquals("https://1.1.1.1/dns-query", dnsServers.getString(2))
+        assertEquals("https://8.8.8.8/dns-query", dnsServers.getString(3))
         assertEquals("dns-out", outbounds.getJSONObject(1).getString("tag"))
         assertEquals("direct", outbounds.getJSONObject(2).getString("tag"))
         assertEquals("block", outbounds.getJSONObject(3).getString("tag"))
@@ -71,6 +85,11 @@ class XrayTunConfigTest {
         val server = proxy.getJSONObject("settings").getJSONArray("servers").getJSONObject(0)
         assertEquals("127.0.0.1", server.getString("address"))
         assertEquals(19050, server.getInt("port"))
+
+        val dnsServers = root.getJSONObject("dns").getJSONArray("servers")
+        assertEquals(2, dnsServers.length())
+        assertEquals("https://1.1.1.1/dns-query", dnsServers.getString(0))
+        assertEquals("https://8.8.8.8/dns-query", dnsServers.getString(1))
 
         val rules = root.getJSONObject("routing").getJSONArray("rules")
         val udpBlock = (0 until rules.length())
