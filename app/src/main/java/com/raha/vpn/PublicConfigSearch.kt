@@ -32,7 +32,7 @@ object PublicConfigSearch {
      * other source. Return partial results if the overall 40-second budget expires.
      */
     fun fetch(): List<String> {
-        val executor = Executors.newFixedThreadPool(4)
+        val executor = Executors.newFixedThreadPool(8)
         return try {
             val tasks = sources.map { source -> Callable { fetchSource(source) } }
             executor.invokeAll(tasks, 40, TimeUnit.SECONDS)
