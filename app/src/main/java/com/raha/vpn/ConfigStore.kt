@@ -95,7 +95,7 @@ class ConfigStore(context: Context) {
         private const val TAG_BITS = 128
 
         fun isSupported(value: String): Boolean {
-            val normalized = value.trim().removePrefix("Bridge ").trim()
+            val normalized = value.trim().replaceFirst(Regex("^Bridge\\s+", RegexOption.IGNORE_CASE), "").trim()
             if (normalized.startsWith("obfs4 ", ignoreCase = true)) {
                 val bridge = normalized.removePrefix("obfs4 ").trim()
                 return Regex(
