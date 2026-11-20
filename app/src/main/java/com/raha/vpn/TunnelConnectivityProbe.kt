@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.os.SystemClock
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
+import java.net.InetAddress
 import java.net.URL
 
 internal data class TunnelProbeResult(
@@ -100,9 +101,22 @@ internal object TunnelConnectivityProbe {
             ?.substringAfter("ip=")
             ?.trim()
             ?: return null
-        if (value.length !in 3..45) return null
-        return value.takeIf {
-            it.matches(Regex("[0-9a-fA-F:.]+")) && it.any(Char::isDigit)
+        if (value.length !in 3..45 || !value.matches(Regex("[0-9a-fA-F:.]+"))) return null
+        return value.takeIf(::isValidIpLiteral)
+    }
+
+    private fun isValidIpLiteral(value: String): Boolean {
+        if (value.contains(':')) {
+            return runCatching { InetAddress.getByName(value).address.size == 16 }
+                .getOrDefault(false)
+        }
+        val octets = value.split('.')
+        if (octets.size != 4) return false
+        return octets.all { part ->
+            part.isNotEmpty() &&
+                (part.length == 1 || part.first() != '0') &&
+                part.all(Char::isDigit) &&
+                part.toIntOrNull()?.let { it in 0..255 } == true
         }
     }
 }
