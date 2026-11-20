@@ -12,6 +12,7 @@ import org.json.JSONObject
 object SingBoxConfigBuilder {
     fun build(raw: String): String {
         val normalized = raw.trim()
+        if (normalized.contains("[Interface]", ignoreCase = true) && normalized.contains("[Peer]", ignoreCase = true)) return buildWireGuard(normalized)
         if (normalized.startsWith("ss://", true)) return buildShadowsocks(normalized)
         if (normalized.startsWith("hysteria2://", true) || normalized.startsWith("hy2://", true)) return buildHysteria2(normalized)
         if (normalized.startsWith("tuic://", true)) return buildTuic(normalized)
@@ -109,6 +110,89 @@ object SingBoxConfigBuilder {
         return tunnelConfig(outbound)
     }
 
+
+
+    private fun buildWireGuard(config: String): String {
+        val sections = linkedMapOf<String, MutableMap<String, String>>()
+        var current: MutableMap<String, String>? = null
+        config.lineSequence().forEach { rawLine ->
+            val line = rawLine.substringBefore('#').substringBefore(';').trim()
+            if (line.isEmpty()) return@forEach
+            if (line.startsWith("[") && line.endsWith("]")) {
+                val section = line.substring(1, line.length - 1).trim().lowercase()
+                require(section == "interface" || section == "peer") { "بخش ناشناخته در فایل WireGuard: $section" }
+                if (section == "interface") {
+                    require(!sections.containsKey("interface")) { "فایل WireGuard فقط باید یک بخش Interface داشته باشد" }
+                    current = linkedMapOf<String, String>().also { sections[section] = it }
+                } else {
+                    val key = "peer-\${sections.keys.count { it.startsWith("peer-") } + 1}"
+                    current = linkedMapOf<String, String>().also { sections[key] = it }
+                }
+            } else {
+                val target = current ?: error("گزینه‌های فایل WireGuard باید داخل بخش Interface یا Peer باشند")
+                val separator = line.indexOf('=')
+                require(separator > 0) { "ساختار خط فایل WireGuard معتبر نیست" }
+                target[line.substring(0, separator).trim().lowercase()] = line.substring(separator + 1).trim()
+            }
+        }
+        val iface = sections["interface"] ?: error("بخش [Interface] در فایل WireGuard وجود ندارد")
+        val privateKey = iface["privatekey"]?.takeIf { validWireGuardKey(it) }
+            ?: error("PrivateKey در فایل WireGuard معتبر نیست")
+        val addresses = iface["address"]?.split(',')?.map(String::trim)?.filter(String::isNotBlank)
+            ?.takeIf { it.isNotEmpty() && it.all(::validCidr) }
+            ?: error("Address در فایل WireGuard معتبر نیست")
+        val peers = sections.filterKeys { it.startsWith("peer-") }.values
+        require(peers.isNotEmpty()) { "حداقل یک بخش [Peer] لازم است" }
+        val peerArray = JSONArray()
+        peers.forEach { peer ->
+            val publicKey = peer["publickey"]?.takeIf { validWireGuardKey(it) }
+                ?: error("PublicKey یکی از Peerها معتبر نیست")
+            val endpointText = peer["endpoint"]?.takeIf { it.isNotBlank() }
+                ?: error("Endpoint یکی از Peerها وجود ندارد")
+            val endpointUri = Uri.parse("udp://$endpointText")
+            val host = endpointUri.host?.takeIf { it.isNotBlank() }
+                ?: error("آدرس Endpoint در WireGuard معتبر نیست")
+            val port = endpointUri.port.takeIf { it in 1..65535 }
+                ?: error("پورت Endpoint در WireGuard معتبر نیست")
+            val allowed = peer["allowedips"]?.split(',')?.map(String::trim)?.filter(String::isNotBlank)
+                ?.takeIf { it.isNotEmpty() && it.all(::validCidr) }
+                ?: error("AllowedIPs یکی از Peerها معتبر نیست")
+            val peerJson = JSONObject()
+                .put("address", host).put("port", port)
+                .put("public_key", publicKey)
+                .put("allowed_ips", JSONArray(allowed))
+            peer["presharedkey"]?.takeIf { it.isNotBlank() }?.let {
+                require(validWireGuardKey(it)) { "PresharedKey در WireGuard معتبر نیست" }
+                peerJson.put("pre_shared_key", it)
+            }
+            peer["persistentkeepalive"]?.toIntOrNull()?.let {
+                require(it in 0..65535) { "PersistentKeepalive در WireGuard معتبر نیست" }
+                peerJson.put("persistent_keepalive_interval", it)
+            }
+            peerArray.put(peerJson)
+        }
+        val endpoint = JSONObject()
+            .put("type", "wireguard").put("tag", "wg-ep")
+            .put("system", false)
+            .put("mtu", iface["mtu"]?.toIntOrNull()?.also { require(it in 576..9000) } ?: 1408)
+            .put("address", JSONArray(addresses))
+            .put("private_key", privateKey)
+            .put("peers", peerArray)
+        return tunnelConfig(JSONObject().put("type", "direct").put("tag", "direct"), JSONArray().put(endpoint), "wg-ep")
+    }
+
+    private fun validWireGuardKey(value: String): Boolean = runCatching {
+        Base64.decode(value, Base64.DEFAULT).size == 32
+    }.getOrDefault(false)
+
+    private fun validCidr(value: String): Boolean {
+        val address = value.substringBefore('/')
+        val prefix = value.substringAfter('/', "").toIntOrNull() ?: return false
+        val isV4 = address.matches(Regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$")) &&
+            address.split('.').all { it.toIntOrNull() in 0..255 }
+        val isV6 = address.contains(':') && address.matches(Regex("^[0-9a-fA-F:]+$"))
+        return (isV4 && prefix in 0..32) || (isV6 && prefix in 0..128)
+    }
 
     private fun buildHysteria2(link: String): String {
         val uri = Uri.parse(link)
@@ -253,7 +337,7 @@ object SingBoxConfigBuilder {
         return tunnelConfig(outbound)
     }
 
-    private fun tunnelConfig(outbound: JSONObject): String {
+    private fun tunnelConfig(outbound: JSONObject, endpoints: JSONArray? = null, finalTag: String = "proxy"): String {
         val tun = JSONObject()
             .put("type", "tun")
             .put("tag", "tun-in")
@@ -272,7 +356,7 @@ object SingBoxConfigBuilder {
                 .put(JSONObject()
                     .put("tag", "remote-dns")
                     .put("address", "https://1.1.1.1/dns-query")
-                    .put("detour", "proxy"))
+                    .put("detour", finalTag))
                 .put(JSONObject()
                     .put("tag", "local-dns")
                     .put("address", "local")))
@@ -281,7 +365,7 @@ object SingBoxConfigBuilder {
 
         val route = JSONObject()
             .put("auto_detect_interface", true)
-            .put("final", "proxy")
+            .put("final", finalTag)
             .put("rules", JSONArray().put(JSONObject()
                 .put("protocol", "dns")
                 .put("action", "hijack-dns")))
@@ -291,6 +375,7 @@ object SingBoxConfigBuilder {
             .put("dns", dns)
             .put("inbounds", JSONArray().put(tun))
             .put("outbounds", JSONArray().put(outbound).put(direct))
+            .apply { if (endpoints != null) put("endpoints", endpoints) }
             .put("route", route)
             .toString()
     }
