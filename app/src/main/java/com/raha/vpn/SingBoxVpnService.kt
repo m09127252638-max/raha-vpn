@@ -12,15 +12,12 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.nekohasekai.libbox.CommandServer
 import io.nekohasekai.libbox.CommandServerHandler
-import io.nekohasekai.libbox.ConnectionOwner
 import io.nekohasekai.libbox.Libbox
-import io.nekohasekai.libbox.NetworkInterfaceIterator
 import io.nekohasekai.libbox.OverrideOptions
 import io.nekohasekai.libbox.PlatformInterface
 import io.nekohasekai.libbox.SetupOptions
 import io.nekohasekai.libbox.SystemProxyStatus
 import io.nekohasekai.libbox.TunOptions
-import java.lang.reflect.Proxy
 import java.util.concurrent.Executors
 
 /**
@@ -137,31 +134,11 @@ class SingBoxVpnService : VpnService() {
     }
 
     private fun createPlatformInterface(): PlatformInterface {
-        return Proxy.newProxyInstance(
-            PlatformInterface::class.java.classLoader,
-            arrayOf(PlatformInterface::class.java)
-        ) { _, method, args ->
-            when (method.name) {
-                "usePlatformAutoDetectInterfaceControl" -> true
-                "autoDetectInterfaceControl" -> {
-                    val fd = (args?.getOrNull(0) as? Number)?.toInt()
-                    if (fd != null && !protect(fd)) error("Unable to protect sing-box socket")
-                    null
-                }
-                "openTun" -> establishTun(args?.getOrNull(0) as TunOptions)
-                "getInterfaces" -> emptyInterfaceIterator()
-                "findConnectionOwner" -> ConnectionOwner()
-                "underNetworkExtension", "includeAllNetworks", "usePlatformShell",
-                "usePlatformBridge" -> false
-                "tailscaleHostname" -> Build.MODEL ?: "Android"
-                "localDNSTransport", "readWIFIState", "openShellSession", "lookupUser",
-                "lookupSFTPServer", "readSystemSSHHostKey", "createBridge" -> null
-                "toString" -> "H.MAGHSODI sing-box PlatformInterface"
-                "hashCode" -> System.identityHashCode(this)
-                "equals" -> this === args?.getOrNull(0)
-                else -> null
-            }
-        } as PlatformInterface
+        return SingBoxPlatformInterface(
+            context = this,
+            protectSocket = { fd -> protect(fd) },
+            openTun = { options -> establishTun(options) }
+        )
     }
 
     private fun establishTun(options: TunOptions): Int {
