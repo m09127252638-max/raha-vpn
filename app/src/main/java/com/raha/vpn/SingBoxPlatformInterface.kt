@@ -123,7 +123,7 @@ internal class SingBoxPlatformInterface(
     override fun getInterfaces(): NetworkInterfaceIterator {
         val nativeInterfaces = runCatching {
             Collections.list(JavaNetworkInterface.getNetworkInterfaces())
-        }.getOrDefault(emptyList())
+        }.getOrDefault(mutableListOf())
         val result = mutableListOf<io.nekohasekai.libbox.NetworkInterface>()
         for (network in connectivity.allNetworks) {
             val properties = connectivity.getLinkProperties(network) ?: continue
