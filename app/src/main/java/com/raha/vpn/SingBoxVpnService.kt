@@ -30,11 +30,16 @@ class SingBoxVpnService : VpnService() {
     private val executor = Executors.newSingleThreadExecutor()
     @Volatile private var commandServer: CommandServer? = null
     @Volatile private var tunDescriptor: android.os.ParcelFileDescriptor? = null
+    @Volatile private var latestStartId: Int = 0
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         when (intent?.action) {
             ACTION_STOP -> {
-                executor.execute { stopTunnel() }
+                executor.execute {
+                    stopTunnel()
+                    stopSelfResult(startId)
+                }
                 return START_NOT_STICKY
             }
             ACTION_START -> {
@@ -56,7 +61,11 @@ class SingBoxVpnService : VpnService() {
     }
 
     override fun onRevoke() {
-        executor.execute { stopTunnel() }
+        val revokeStartId = latestStartId
+        executor.execute {
+            stopTunnel()
+            stopSelfResult(revokeStartId)
+        }
         super.onRevoke()
     }
 
@@ -102,7 +111,11 @@ class SingBoxVpnService : VpnService() {
             val platform = createPlatformInterface()
             val handler = object : CommandServerHandler {
                 override fun serviceStop() {
-                    executor.execute { stopTunnel() }
+                    val stopId = latestStartId
+                    executor.execute {
+                        stopTunnel()
+                        stopSelfResult(stopId)
+                    }
                 }
 
                 override fun serviceReload() {
@@ -133,7 +146,7 @@ class SingBoxVpnService : VpnService() {
             Log.e(TAG, "Unable to start sing-box tunnel", error)
             broadcastState(connected = false, error = error.message ?: "خطای راه‌اندازی تونل")
             stopTunnel(broadcast = false)
-            stopSelf(startId)
+            stopSelfResult(startId)
         }
     }
 
@@ -251,7 +264,6 @@ class SingBoxVpnService : VpnService() {
         releaseTunnel()
         if (broadcast) broadcastState(connected = false)
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
     }
 
     companion object {
