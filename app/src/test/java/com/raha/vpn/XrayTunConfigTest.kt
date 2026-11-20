@@ -26,7 +26,7 @@ class XrayTunConfigTest {
             XrayConfigBuilder.buildTunConfig(outboundDocument, tunFd = 42, torMode = false)
         )
 
-        assertEquals("42", root.getJSONObject("env").getString("xray.tun.fd"))
+        assertFalse(root.has("env"))
 
         val inbound = root.getJSONArray("inbounds").getJSONObject(0)
         assertEquals("tun", inbound.getString("protocol"))
@@ -96,7 +96,7 @@ class XrayTunConfigTest {
             XrayConfigBuilder.buildTorTunConfig(43, "127.0.0.1:19050")
         )
 
-        assertEquals("43", root.getJSONObject("env").getString("xray.tun.fd"))
+        assertFalse(root.has("env"))
         val proxy = root.getJSONArray("outbounds").getJSONObject(0)
         assertEquals("socks", proxy.getString("protocol"))
         val server = proxy.getJSONObject("settings").getJSONArray("servers").getJSONObject(0)

@@ -101,6 +101,32 @@ sed -i 's/^ //g' "${LIBXRAY_DIR}/iptproxy_bridge_android.go"
 )
 
 # Limit the native AAR to the app's only packaged ABI and use Android's cgo resolver.
+# Expose the Android TUN descriptor setter through gomobile. Xray reads this
+# process environment variable while constructing its Android TUN inbound.
+python3 - "${LIBXRAY_DIR}/android_wrapper.go" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text()
+source = source.replace('"errors"', '"errors"\n\t"os"\n\t"strconv"', 1)
+source += """
+// SetTunFd configures the Android VpnService descriptor before Xray starts.
+func SetTunFd(fd int) error {
+	if fd < 0 {
+		return errors.New("invalid Android TUN file descriptor")
+	}
+	return os.Setenv("xray.tun.fd", strconv.Itoa(fd))
+}
+
+// ResetTunFd removes the descriptor after Xray has stopped.
+func ResetTunFd() {
+	_ = os.Unsetenv("xray.tun.fd")
+}
+"""
+path.write_text(source)
+PY
+
 python3 - "${LIBXRAY_DIR}/build/app/android.py" <<'PY'
 from pathlib import Path
 import sys

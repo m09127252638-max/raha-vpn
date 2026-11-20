@@ -25,6 +25,14 @@ class XrayCoreManager {
         LibXray.registerDialerController(dialerController)
     }
 
+    fun setTunDescriptor(fd: Int) {
+        LibXray.setTunFd(fd)
+    }
+
+    fun resetTunDescriptor() {
+        LibXray.resetTunFd()
+    }
+
     fun detach() {
         vpnService = null
     }

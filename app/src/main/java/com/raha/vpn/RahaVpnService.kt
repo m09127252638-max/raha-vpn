@@ -111,6 +111,8 @@ class RahaVpnService : VpnService() {
         val descriptor = establishTun(excludeApplication = torMode)
         tunDescriptor = descriptor
         xrayCore.attach(this)
+        // Xray reads xray.tun.fd from the Go process environment when it creates its TUN inbound.
+        xrayCore.setTunDescriptor(descriptor.fd)
 
         val config = if (torMode) {
             XrayConfigBuilder.buildTorTunConfig(descriptor.fd, socksAddress!!)
@@ -158,6 +160,7 @@ class RahaVpnService : VpnService() {
 
     private suspend fun cleanupResources() {
         runCatching { xrayCore.stop() }
+        runCatching { xrayCore.resetTunDescriptor() }
         xrayCore.detach()
         runCatching { tunDescriptor?.close() }
         tunDescriptor = null
