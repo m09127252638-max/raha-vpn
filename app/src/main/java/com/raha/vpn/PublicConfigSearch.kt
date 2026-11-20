@@ -47,9 +47,16 @@ object PublicConfigSearch {
                 executor.submit(Callable { fetchSource(source) })
             }
             val unique = linkedSetOf<String>()
-            tasks.forEach { task ->
+            var xrayCount = 0
+            var bridgeCount = 0
+            tasks.forEachIndexed { index, task ->
+                val kind = sources[index].kind
+                val kindLimit = if (kind == Kind.XRAY_SHARE_LINKS) MAX_XRAY_RESULTS else MAX_OBFS4_RESULTS
                 runCatching { task.get() }.getOrDefault(emptyList()).forEach { item ->
-                    if (unique.size < MAX_TOTAL_RESULTS) unique.add(item)
+                    val currentKindCount = if (kind == Kind.XRAY_SHARE_LINKS) xrayCount else bridgeCount
+                    if (unique.size < MAX_TOTAL_RESULTS && currentKindCount < kindLimit && unique.add(item)) {
+                        if (kind == Kind.XRAY_SHARE_LINKS) xrayCount++ else bridgeCount++
+                    }
                 }
             }
             unique.toList()
@@ -141,5 +148,7 @@ object PublicConfigSearch {
     private const val MAX_SOURCE_BYTES = 1_500_000
     private const val MAX_PER_SOURCE_RESULTS = 350
     private const val MAX_TOTAL_RESULTS = 1_500
+    private const val MAX_XRAY_RESULTS = 1_200
+    private const val MAX_OBFS4_RESULTS = 300
     private val SUPPORTED_XRAY_SCHEMES = setOf("vless", "trojan")
 }
