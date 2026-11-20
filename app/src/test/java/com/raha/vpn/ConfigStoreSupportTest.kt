@@ -14,12 +14,12 @@ class ConfigStoreSupportTest {
             "ss://YWVzLTI1Ni1nY206cGFzcw@example.com:8388",
             "socks://example.com:1080",
             "socks5://example.com:1080",
-            "socks5h://example.com:1080"
+            "socks5h://example.com:1080",
+            "hysteria2://password@example.com:443",
+            "hy2://password@example.com:443"
         ).forEach { assertTrue("Expected supported: ${it.substringBefore("://")}", ConfigStore.isSupported(it)) }
 
         listOf(
-            "hysteria2://password@example.com:443",
-            "hy2://password@example.com:443",
             "tuic://uuid:password@example.com:443",
             "wireguard://example"
         ).forEach { assertFalse("Must not be offered as connectable: ${it.substringBefore("://")}", ConfigStore.isSupported(it)) }
