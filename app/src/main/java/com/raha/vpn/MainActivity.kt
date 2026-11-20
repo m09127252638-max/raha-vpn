@@ -133,6 +133,7 @@ fun RahaApp() {
             @Suppress("DEPRECATION")
             context.registerReceiver(receiver, filter)
         }
+        SingBoxVpnService.refreshState(context)
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
