@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,6 +70,34 @@ class XrayConfigBuilderTest {
             .getJSONArray("vnext").getJSONObject(0).getString("address"))
         assertEquals("tls", stream.getString("security"))
         assertEquals("/v2", stream.getJSONObject("wsSettings").getString("path"))
+    }
+
+    @Test
+    fun legacyVmessFallbackReturnsOnlyTheValidatedOutbound() {
+        val vmess = JSONObject()
+            .put("add", "legacy-vmess.example")
+            .put("port", "443")
+            .put("id", uuid)
+            .put("aid", "0")
+            .put("net", "tcp")
+            .put("tls", "tls")
+        val encoded = Base64.encodeToString(vmess.toString().toByteArray(), Base64.NO_WRAP)
+
+        val result = XrayCoreManager().legacyVmessFallback("vmess://$encoded")
+        assertTrue(result != null)
+        val outbounds = result!!.getJSONArray("outbounds")
+        assertEquals(1, outbounds.length())
+        assertEquals("vmess", outbounds.getJSONObject(0).getString("protocol"))
+        assertEquals("legacy-vmess.example", outbounds.getJSONObject(0)
+            .getJSONObject("settings").getJSONArray("vnext").getJSONObject(0).getString("address"))
+    }
+
+    @Test
+    fun legacyVmessFallbackRejectsMultipleOrInvalidEntries() {
+        assertNull(XrayCoreManager().legacyVmessFallback("vmess://not-base64-json"))
+        assertNull(XrayCoreManager().legacyVmessFallback(
+            "vmess://not-base64-json\nvless://$uuid@edge.example:443"
+        ))
     }
 
     @Test
