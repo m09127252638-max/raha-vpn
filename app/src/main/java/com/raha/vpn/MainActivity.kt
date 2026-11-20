@@ -111,6 +111,19 @@ fun RahaApp() {
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
+    fun requestSingBoxTunnel(config: String) {
+        val permissionIntent = VpnService.prepare(context)
+        if (permissionIntent == null) {
+            vpnConnecting = true
+            SingBoxVpnService.start(context, config)
+            message = "درخواست اتصال تونل ارسال شد."
+        } else {
+            pendingSingBoxConfig = config
+            vpnConnecting = true
+            vpnPermissionLauncher.launch(permissionIntent)
+        }
+    }
+
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
             Column(Modifier.fillMaxSize().padding(20.dp)) {
@@ -139,7 +152,9 @@ fun RahaApp() {
                         Text(
                             when {
                                 torConnected -> "اتصال Tor برقرار است"
+                                vpnConnected && isObfs4Selected -> "تونل سراسری Tor فعال است"
                                 vpnConnected -> "تونل سراسری VPN فعال است"
+                                torConnected && isObfs4Selected -> "پل Tor آماده؛ تونل سراسری قطع است"
                                 torConnecting -> "در حال اتصال به پل obfs4..."
                                 vpnConnecting -> "در حال راه‌اندازی تونل VPN..."
                                 isObfs4Selected -> "آماده اتصال با پل obfs4"
@@ -152,8 +167,9 @@ fun RahaApp() {
                         )
                         Text(
                             when {
-                                torConnected -> "پروکسی محلی Tor: socks5://127.0.0.1:19050"
+                                vpnConnected && isObfs4Selected -> "تمام ترافیک دستگاه از مسیر Tor عبور می‌کند."
                                 vpnConnected -> "ترافیک دستگاه از تونل sing-box عبور می‌کند."
+                                torConnected -> "پل Tor آماده است؛ برای اتصال سراسری دوباره بزن."
                                 selectedServer == null -> "یک کانفیگ VLESS، VMess، Trojan یا پل obfs4 اضافه کن."
                                 isObfs4Selected -> "اتصال Tor با پل obfs4"
                                 isSingBoxSupported -> "سرور انتخاب‌شده: ${selectedServer?.address}"
@@ -166,6 +182,42 @@ fun RahaApp() {
                         Button(
                             onClick = {
                                 when {
+                                    vpnConnected -> {
+                                        vpnConnecting = true
+                                        SingBoxVpnService.stop(context)
+                                        if (torConnected) {
+                                            coroutineScope.launch {
+                                                withContext(Dispatchers.IO) { torBridgeManager.disconnect() }
+                                                torConnected = false
+                                            }
+                                        }
+                                    }
+                                    isObfs4Selected -> {
+                                        val bridge = selectedServer?.rawConfig
+                                        if (bridge.isNullOrBlank()) {
+                                            message = "ابتدا یک پل obfs4 معتبر انتخاب کن."
+                                        } else if (torConnected) {
+                                            runCatching { SingBoxConfigBuilder.buildTorSocks() }
+                                                .onSuccess { requestSingBoxTunnel(it) }
+                                                .onFailure { message = "ساخت تونل Tor ناموفق بود: ${it.message}" }
+                                        } else {
+                                            torConnecting = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
+                                                    torConnected = true
+                                                    val config = SingBoxConfigBuilder.buildTorSocks()
+                                                    requestSingBoxTunnel(config)
+                                                } catch (error: Throwable) {
+                                                    torConnected = false
+                                                    message = "راه‌اندازی پل یا تونل Tor ناموفق بود: " +
+                                                        (error.message ?: "خطای ناشناخته")
+                                                } finally {
+                                                    torConnecting = false
+                                                }
+                                            }
+                                        }
+                                    }
                                     torConnected -> {
                                         torConnecting = true
                                         coroutineScope.launch {
@@ -175,47 +227,15 @@ fun RahaApp() {
                                             message = "اتصال Tor قطع شد."
                                         }
                                     }
-                                    vpnConnected -> {
-                                        vpnConnecting = true
-                                        SingBoxVpnService.stop(context)
-                                    }
-                                    isObfs4Selected -> {
-                                        val bridge = selectedServer?.rawConfig
-                                        if (bridge.isNullOrBlank()) {
-                                            message = "ابتدا یک پل obfs4 معتبر انتخاب کن."
-                                        } else {
-                                            torConnecting = true
-                                            coroutineScope.launch {
-                                                try {
-                                                    val socks = withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
-                                                    torConnected = true
-                                                    message = "اتصال Tor برقرار شد؛ پروکسی محلی socks5://$socks"
-                                                } catch (error: Throwable) {
-                                                    torConnected = false
-                                                    message = "اتصال پل ناموفق بود: " + (error.message ?: "خطای ناشناخته")
-                                                } finally {
-                                                    torConnecting = false
-                                                }
-                                            }
-                                        }
-                                    }
-                                    selectedServer != null -> {
+                                    isSingBoxSupported -> {
                                         try {
-                                            val config = SingBoxConfigBuilder.build(selectedServer!!.rawConfig)
-                                            val permissionIntent = VpnService.prepare(context)
-                                            if (permissionIntent == null) {
-                                                vpnConnecting = true
-                                                SingBoxVpnService.start(context, config)
-                                                message = "درخواست اتصال تونل ارسال شد."
-                                            } else {
-                                                pendingSingBoxConfig = config
-                                                vpnPermissionLauncher.launch(permissionIntent)
-                                            }
+                                            requestSingBoxTunnel(SingBoxConfigBuilder.build(selectedServer!!.rawConfig))
                                         } catch (error: Throwable) {
                                             message = "کانفیگ قابل اجرا نیست: " + (error.message ?: "خطای نامشخص")
                                         }
                                     }
                                 }
+                            },
                             },
                             enabled = !torConnecting && !vpnConnecting &&
                                 (isAnyConnected || isObfs4Selected || isSingBoxSupported),
@@ -226,7 +246,7 @@ fun RahaApp() {
                                 when {
                                     torConnecting || vpnConnecting -> "در حال اتصال..."
                                     torConnected || vpnConnected -> "قطع اتصال"
-                                    isObfs4Selected -> "اتصال با obfs4"
+                                    isObfs4Selected -> "اتصال سراسری با obfs4"
                                     isSingBoxSupported -> "اتصال VPN سراسری"
                                     selectedServer != null -> "پروتکل پشتیبانی‌نشده"
                                     else -> "سروری انتخاب نشده"
@@ -234,10 +254,12 @@ fun RahaApp() {
                             )
                         }
                         Text(
-                            if (isObfs4Selected || torConnected)
-                                "پل obfs4 در حال حاضر پروکسی محلی Tor می‌سازد؛ هنوز تونل سراسری دستگاه نیست."
-                            else
-                                "تونل سراسری فقط پس از تأیید موفق موتور و مجوز اندروید فعال اعلام می‌شود.",
+                            when {
+                                vpnConnected && isObfs4Selected -> "ترافیک دستگاه از تونل سراسری Tor عبور می‌کند."
+                                vpnConnected -> "ترافیک دستگاه از تونل سراسری sing-box عبور می‌کند."
+                                isObfs4Selected -> "ابتدا پل obfs4 راه‌اندازی می‌شود؛ سپس تونل سراسری VPN فعال خواهد شد."
+                                else -> "اتصال فقط پس از تأیید موفق موتور و مجوز اندروید فعال اعلام می‌شود."
+                            },
                             color = Muted,
                             fontSize = 10.sp
                         )
