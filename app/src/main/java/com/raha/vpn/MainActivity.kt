@@ -366,17 +366,18 @@ fun RahaApp() {
                                     configSearching = true
                                     coroutineScope.launch {
                                         try {
-                                            val found = withContext(Dispatchers.IO) {
-                                                PublicConfigSearch.fetchSubscription(subscriptionUrl)
+                                            val report = withContext(Dispatchers.IO) {
+                                                PublicConfigSearch.fetchSubscriptionReport(subscriptionUrl)
                                             }
+                                            val found = report.configs
                                             if (found.isEmpty()) {
-                                                message = "از این لینک کانفیگ پشتیبانی‌شده‌ای دریافت نشد؛ ممکن است فرمت آن Clash یا لینک نامعتبر باشد."
+                                                message = "کانفیگ قابل‌استفاده‌ای پیدا نشد؛ خطوط بررسی‌شده: ${report.totalLines}، پشتیبانی‌نشده: ${report.unsupported}، خراب/بیش‌ازحدطولانی: ${report.malformed}. فرمت Clash هنوز پشتیبانی نمی‌شود."
                                             } else {
                                                 found.forEach { configStore.add(it) }
                                                 servers = configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) }
                                                 selectedServer = servers.firstOrNull { it.rawConfig == found.first() } ?: servers.firstOrNull()
                                                 configText = ""
-                                                message = "${found.size} کانفیگ از سابسکریپشن دریافت و ذخیره شد؛ زنده‌بودن سرورها هنوز بررسی نشده است."
+                                                message = "${report.accepted} کانفیگ ذخیره شد؛ تکراری: ${report.duplicates}، پشتیبانی‌نشده: ${report.unsupported}، خراب: ${report.malformed}. زنده‌بودن سرورها هنوز بررسی نشده است."
                                                 selectedTab = 0
                                             }
                                         } catch (cancelled: CancellationException) {
