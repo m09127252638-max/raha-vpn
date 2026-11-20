@@ -130,6 +130,73 @@ class SingBoxConfigBuilderTest {
     }
 
     @Test(expected = IllegalStateException::class)
+    fun rejectsNonNumericWireGuardMtu() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            Address = 10.66.0.2/32
+            MTU = automatic
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = wg.example.net:51820
+            AllowedIPs = 0.0.0.0/0
+        """.trimIndent()
+        SingBoxConfigBuilder.build(raw)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun rejectsNonNumericWireGuardKeepalive() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            Address = 10.66.0.2/32
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = wg.example.net:51820
+            AllowedIPs = 0.0.0.0/0
+            PersistentKeepalive = often
+        """.trimIndent()
+        SingBoxConfigBuilder.build(raw)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun rejectsMalformedWireGuardIpv6Address() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            Address = fd00:::2/128
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = wg.example.net:51820
+            AllowedIPs = ::/0
+        """.trimIndent()
+        SingBoxConfigBuilder.build(raw)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun rejectsDuplicateWireGuardOptions() {
+        val key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        val raw = """
+            [Interface]
+            PrivateKey = $key
+            PrivateKey = $key
+            Address = 10.66.0.2/32
+
+            [Peer]
+            PublicKey = $key
+            Endpoint = wg.example.net:51820
+            AllowedIPs = 0.0.0.0/0
+        """.trimIndent()
+        SingBoxConfigBuilder.build(raw)
+    }
+
+    @Test(expected = IllegalStateException::class)
     fun rejectsUnsupportedProtocolForDeviceTunnel() {
         SingBoxConfigBuilder.build("wireguard://not-supported")
     }
