@@ -100,15 +100,32 @@ object XrayConfigBuilder {
                 .put("outboundTag", "block"))
         }
 
+        val dnsServers = JSONArray()
+        if (!torMode) {
+            val proxyHost = outboundServerAddress(outboundDocument)
+            if (!isIpLiteral(proxyHost)) {
+                // Bootstrap only the proxy endpoint directly over encrypted DoH.
+                // All ordinary DNS queries continue through the proxy outbound.
+                dnsServers.put(JSONObject()
+                    .put("address", "https+local://1.1.1.1/dns-query")
+                    .put("domains", JSONArray().put("full:$proxyHost"))
+                    .put("skipFallback", true))
+                dnsServers.put(JSONObject()
+                    .put("address", "https+local://8.8.8.8/dns-query")
+                    .put("domains", JSONArray().put("full:$proxyHost"))
+                    .put("skipFallback", true))
+            }
+        }
+        dnsServers.put("https://1.1.1.1/dns-query")
+        dnsServers.put("https://8.8.8.8/dns-query")
+
         return JSONObject()
             .put("log", JSONObject().put("loglevel", "warning"))
             .put("env", JSONObject().put("xray.tun.fd", tunFd.toString()))
             .put("inbounds", JSONArray().put(tunInbound))
             .put("outbounds", outbounds)
             .put("dns", JSONObject()
-                .put("servers", JSONArray()
-                    .put("https+local://1.1.1.1/dns-query")
-                    .put("https+local://8.8.8.8/dns-query"))
+                .put("servers", dnsServers)
                 .put("queryStrategy", "UseIP"))
             .put("routing", JSONObject()
                 .put("domainStrategy", "AsIs")
@@ -137,6 +154,11 @@ object XrayConfigBuilder {
             )))
         return buildTunConfig(JSONObject().put("outbounds", JSONArray().put(outbound)), tunFd, torMode = true)
     }
+
+    private fun isIpLiteral(host: String): Boolean =
+        host.contains(':') || IPV4_LITERAL.matches(host)
+
+    private val IPV4_LITERAL = Regex("""^(?:\\d{1,3}\\.){3}\\d{1,3}$""")
 
     fun outboundServerAddress(outboundDocument: JSONObject): String {
         val outbounds = outboundDocument.optJSONArray("outbounds")
