@@ -125,7 +125,8 @@ object SingBoxConfigBuilder {
                     require(!sections.containsKey("interface")) { "فایل WireGuard فقط باید یک بخش Interface داشته باشد" }
                     current = linkedMapOf<String, String>().also { sections[section] = it }
                 } else {
-                    val key = "peer-${sections.keys.count { it.startsWith("peer-") } + 1}"
+                    val peerNumber = sections.keys.count { it.startsWith("peer-") } + 1
+                    val key = "peer-$peerNumber"
                     current = linkedMapOf<String, String>().also { sections[key] = it }
                 }
             } else {
