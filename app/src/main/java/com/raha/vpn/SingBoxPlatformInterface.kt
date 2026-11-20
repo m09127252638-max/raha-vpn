@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Build
 import android.os.Process
 import android.system.OsConstants
@@ -121,9 +120,6 @@ internal class SingBoxPlatformInterface(
                 index = native.index
                 mtu = runCatching { native.mtu }.getOrDefault(0)
                 dnsServer = StringArray(properties.dnsServers.mapNotNull { it.hostAddress }.iterator())
-                dnsSearchDomain = StringArray(
-                    properties.domains?.split(' ')?.filter { it.isNotBlank() }.orEmpty().iterator()
-                )
                 gateway = StringArray(
                     properties.routes
                         .filter { it.destination.prefixLength == 0 }
