@@ -86,12 +86,9 @@ class TorBridgeManager(private val context: Context) {
      * CONNECT succeeds through Tor, which requires a working circuit and exit.
      */
     private suspend fun awaitTorCircuitReady() = withTimeout(180_000L) {
-        var lastError: Exception? = null
         while (true) {
             val connected = withContext(Dispatchers.IO) {
-                runCatching { probeTorSocksCircuit() }
-                    .onFailure { lastError = it as? Exception }
-                    .getOrDefault(false)
+                runCatching { probeTorSocksCircuit() }.getOrDefault(false)
             }
             if (connected) return@withTimeout
             delay(3_000L)
@@ -121,23 +118,25 @@ class TorBridgeManager(private val context: Context) {
         }
     }
 
-    internal fun consumeSocks5ConnectReply(input: InputStream): Boolean = runCatching {
-        if (input.read() != 5) return@runCatching false
-        if (input.read() != 0) return@runCatching false
-        if (input.read() != 0) return@runCatching false
-        when (input.read()) {
-            1 -> repeat(4) { if (input.read() < 0) throw EOFException() }
-            3 -> {
-                val length = input.read()
-                if (length < 0) throw EOFException()
-                repeat(length) { if (input.read() < 0) throw EOFException() }
+    companion object {
+        internal fun consumeSocks5ConnectReply(input: InputStream): Boolean = runCatching {
+            if (input.read() != 5) return@runCatching false
+            if (input.read() != 0) return@runCatching false
+            if (input.read() != 0) return@runCatching false
+            when (input.read()) {
+                1 -> repeat(4) { if (input.read() < 0) throw EOFException() }
+                3 -> {
+                    val length = input.read()
+                    if (length < 0) throw EOFException()
+                    repeat(length) { if (input.read() < 0) throw EOFException() }
+                }
+                4 -> repeat(16) { if (input.read() < 0) throw EOFException() }
+                else -> return@runCatching false
             }
-            4 -> repeat(16) { if (input.read() < 0) throw EOFException() }
-            else -> return@runCatching false
-        }
-        if (input.read() < 0 || input.read() < 0) throw EOFException()
-        true
-    }.getOrDefault(false)
+            if (input.read() < 0 || input.read() < 0) throw EOFException()
+            true
+        }.getOrDefault(false)
+    }
 
     private suspend fun awaitTorServiceStarted() = withTimeout(240_000L) {
         suspendCancellableCoroutine<Unit> { continuation ->
