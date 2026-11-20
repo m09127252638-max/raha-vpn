@@ -120,7 +120,7 @@ fun RahaApp() {
                 vpnConnecting = false
                 val error = intent?.getStringExtra(SingBoxVpnService.EXTRA_ERROR)
                 message = if (!error.isNullOrBlank()) error else if (vpnConnected) {
-                    "تونل سراسری VPN برقرار شد."
+                    "موتور تونل راه‌اندازی شد؛ دسترسی واقعی اینترنت هنوز تأیید نشده است."
                 } else {
                     "اتصال VPN قطع شد."
                 }
@@ -176,8 +176,8 @@ fun RahaApp() {
                         val isAnyConnected = torConnected || vpnConnected
                         Text(
                             when {
-                                vpnConnected && isObfs4Selected -> "تونل سراسری Tor فعال است"
-                                vpnConnected -> "تونل سراسری VPN فعال است"
+                                vpnConnected && isObfs4Selected -> "موتور تونل Tor راه‌اندازی شده"
+                                vpnConnected -> "موتور تونل VPN راه‌اندازی شده"
                                 torConnected && isObfs4Selected -> "پل Tor آماده؛ تونل سراسری قطع است"
                                 torConnected -> "پروکسی Tor آماده است"
                                 torConnecting -> "در حال اتصال به پل obfs4..."
@@ -192,8 +192,8 @@ fun RahaApp() {
                         )
                         Text(
                             when {
-                                vpnConnected && isObfs4Selected -> "تمام ترافیک دستگاه از مسیر Tor عبور می‌کند."
-                                vpnConnected -> "ترافیک دستگاه از تونل sing-box عبور می‌کند."
+                                vpnConnected && isObfs4Selected -> "موتور تونل Tor فعال شده؛ عبور موفق اینترنت هنوز جداگانه آزمایش نشده است."
+                                vpnConnected -> "موتور sing-box تونل را پذیرفته؛ دسترسی واقعی اینترنت هنوز تأیید نشده است."
                                 torConnected -> "پل Tor آماده است؛ برای اتصال سراسری دوباره بزن."
                                 selectedServer == null -> "یک کانفیگ VLESS، VMess، Trojan، Shadowsocks، WireGuard یا پل obfs4 اضافه کن."
                                 isObfs4Selected -> "اتصال Tor با پل obfs4"
