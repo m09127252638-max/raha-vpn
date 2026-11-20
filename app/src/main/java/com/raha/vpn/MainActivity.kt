@@ -428,13 +428,13 @@ private fun serverFromConfig(raw: String, index: Int): Server {
     val isObfs4 = raw.startsWith("obfs4 ", ignoreCase = true)
     val isWireGuard = raw.contains("[Interface]", ignoreCase = true) && raw.contains("[Peer]", ignoreCase = true)
     val protocol = when { isObfs4 -> "obfs4"; isWireGuard -> "wireguard"; else -> raw.substringBefore("://", "").lowercase() }
-    val endpoint = if (isWireGuard) {
+    val endpoint = (if (isWireGuard) {
         Regex("(?im)^\\s*Endpoint\\s*=\\s*(.+)$").find(raw)?.groupValues?.get(1)?.trim()
     } else if (isObfs4) {
         Regex("""^obfs4\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1)
     } else {
         Regex("@([^@:/?#]+):\\d+").find(raw)?.groupValues?.get(1)
             ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
-    } ?: "آدرس مخفی"
+    }) ?: "آدرس مخفی"
     return Server("سرور " + (index + 1), endpoint, protocol, raw)
 }
