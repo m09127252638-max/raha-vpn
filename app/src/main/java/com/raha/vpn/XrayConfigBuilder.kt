@@ -158,7 +158,7 @@ object XrayConfigBuilder {
     private fun isIpLiteral(host: String): Boolean =
         host.contains(':') || IPV4_LITERAL.matches(host)
 
-    private val IPV4_LITERAL = Regex("""^(?:\\d{1,3}\\.){3}\\d{1,3}$""")
+    private val IPV4_LITERAL = Regex("""^(?:\d{1,3}\.){3}\d{1,3}$""")
 
     fun outboundServerAddress(outboundDocument: JSONObject): String {
         val outbounds = outboundDocument.optJSONArray("outbounds")
