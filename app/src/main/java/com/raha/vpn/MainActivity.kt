@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -374,9 +375,15 @@ fun RahaApp() {
                                 if (!dnsChecking) {
                                     dnsChecking = true
                                     coroutineScope.launch {
-                                        val results = withContext(Dispatchers.IO) { DnsProbe.checkAll() }
-                                        dnsResults = results
-                                        dnsChecking = false
+                                        try {
+                                            dnsResults = withContext(Dispatchers.IO) { DnsProbe.checkAll() }
+                                        } catch (cancelled: CancellationException) {
+                                            throw cancelled
+                                        } catch (_: Exception) {
+                                            message = "بررسی DNS با خطا روبه‌رو شد؛ دوباره تلاش کن."
+                                        } finally {
+                                            dnsChecking = false
+                                        }
                                     }
                                 }
                             },
@@ -413,10 +420,17 @@ fun RahaApp() {
                             if (!configSearching) {
                                 configSearching = true
                                 coroutineScope.launch {
-                                    val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
-                                    publicConfigs = found
-                                    configSearching = false
-                                    message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else found.size.toString() + " کانفیگ عمومی پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
+                                    try {
+                                        val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
+                                        publicConfigs = found
+                                        message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else found.size.toString() + " کانفیگ عمومی پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        message = "جستجوی کانفیگ‌ها با خطا روبه‌رو شد؛ دوباره تلاش کن."
+                                    } finally {
+                                        configSearching = false
+                                    }
                                 }
                             }
                         }, enabled = !configSearching, modifier = Modifier.fillMaxWidth()) {
