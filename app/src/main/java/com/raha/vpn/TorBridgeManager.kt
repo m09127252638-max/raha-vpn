@@ -44,7 +44,7 @@ class TorBridgeManager(private val context: Context) {
             torrc.parentFile?.mkdirs()
             torrc.writeText(buildTorrc(bridge, transportAddress))
 
-            awaitTorCircuit()
+            awaitTorServiceStarted()
             started = true
             return "127.0.0.1:19050"
         } catch (error: Throwable) {
@@ -72,7 +72,7 @@ class TorBridgeManager(private val context: Context) {
             "SafeSocks 1"
         ).joinToString("\n", postfix = "\n")
 
-    private suspend fun awaitTorCircuit() = withTimeout(240_000L) {
+    private suspend fun awaitTorServiceStarted() = withTimeout(240_000L) {
         suspendCancellableCoroutine<Unit> { continuation ->
             val unregistered = AtomicBoolean(false)
             val receiver = object : BroadcastReceiver() {
@@ -84,7 +84,7 @@ class TorBridgeManager(private val context: Context) {
                                 TorService.STATUS_ON -> if (continuation.isActive) continuation.resume(Unit)
                                 TorService.STATUS_STOPPING, TorService.STATUS_OFF -> {
                                     if (continuation.isActive) continuation.resumeWithException(
-                                        IllegalStateException("Tor نتوانست مدار امن بسازد.")
+                                        IllegalStateException("سرویس Tor پیش از آماده‌شدن متوقف شد.")
                                     )
                                 }
                             }
