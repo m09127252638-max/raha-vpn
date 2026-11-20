@@ -74,10 +74,12 @@ fun RahaApp() {
             try {
                 val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
                 publicConfigs = found
+                val bridgeCount = found.count { it.startsWith("obfs4 ", ignoreCase = true) }
+                val proxyCount = found.size - bridgeCount
                 message = if (found.isEmpty()) {
                     "از منابع عمومی کانفیگی دریافت نشد؛ اتصال اینترنت یا دسترسی به منابع را بررسی کن."
                 } else {
-                    "${found.size} کانفیگ عمومی و پل Tor دریافت شد؛ برای افزودن، گزینه افزودن را بزن."
+                    "$proxyCount کانفیگ سرور و $bridgeCount پل Tor دریافت شد؛ برای افزودن، گزینه افزودن را بزن."
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -445,7 +447,9 @@ fun RahaApp() {
                                     try {
                                         val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
                                         publicConfigs = found
-                                        message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else found.size.toString() + " کانفیگ عمومی پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
+                                        val bridgeCount = found.count { it.startsWith("obfs4 ", ignoreCase = true) }
+                                        val proxyCount = found.size - bridgeCount
+                                        message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else "$proxyCount کانفیگ سرور و $bridgeCount پل Tor پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
                                     } catch (cancelled: CancellationException) {
                                         throw cancelled
                                     } catch (_: Exception) {
