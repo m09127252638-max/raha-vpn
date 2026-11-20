@@ -139,7 +139,9 @@ object PublicConfigSearch {
                     ConfigStore.isSupported(line)
             Kind.XRAY_SHARE_LINKS -> {
                 val scheme = line.substringBefore("://", "").lowercase()
-                scheme in SUPPORTED_XRAY_SCHEMES && ConfigStore.isSupported(line)
+                scheme in SUPPORTED_XRAY_SCHEMES &&
+                    ConfigStore.isSupported(line) &&
+                    runCatching { XrayConfigBuilder.build(line) }.isSuccess
             }
         }
     }
