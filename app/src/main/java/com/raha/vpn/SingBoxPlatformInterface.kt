@@ -143,12 +143,9 @@ internal class SingBoxPlatformInterface(
                         .filterNot { it.isAnyLocalAddress }
                         .mapNotNull { it.hostAddress }
                 )
-                addresses = StringArray(native.interfaceAddresses.map { address ->
-                    val host = if (address.address is Inet6Address) {
-                        address.address.hostAddress.substringBefore('%')
-                    } else {
-                        address.address.hostAddress
-                    }
+                addresses = StringArray(native.interfaceAddresses.mapNotNull { address ->
+                    val rawHost = address.address.hostAddress ?: return@mapNotNull null
+                    val host = if (address.address is Inet6Address) rawHost.substringBefore('%') else rawHost
                     "$host/${address.networkPrefixLength}"
                 })
                 type = when {
