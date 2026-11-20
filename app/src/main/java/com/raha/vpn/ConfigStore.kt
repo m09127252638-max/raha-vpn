@@ -116,7 +116,7 @@ class ConfigStore(context: Context) {
                 // These protocols are connectable in the current UI. Validate them
                 // with the exact parser used at connection time so malformed links
                 // never enable the Connect button.
-                "vless", "trojan" -> runCatching {
+                "vless", "vmess", "trojan" -> runCatching {
                     XrayConfigBuilder.build(normalized)
                     true
                 }.getOrDefault(false)
