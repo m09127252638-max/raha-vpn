@@ -37,6 +37,32 @@ class SingBoxConfigBuilderTest {
     }
 
     @Test
+    fun buildsShadowsocksSip002Tunnel() {
+        val userInfo = android.util.Base64.encodeToString(
+            "aes-128-gcm:secret-password".toByteArray(),
+            android.util.Base64.NO_WRAP
+        )
+        val config = JSONObject(SingBoxConfigBuilder.build("ss://$userInfo@ss.example.net:8388#test"))
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("shadowsocks", outbound.getString("type"))
+        assertEquals("aes-128-gcm", outbound.getString("method"))
+        assertEquals("secret-password", outbound.getString("password"))
+        assertEquals(8388, outbound.getInt("server_port"))
+    }
+
+    @Test
+    fun buildsShadowsocksLegacyTunnel() {
+        val payload = android.util.Base64.encodeToString(
+            "chacha20-ietf-poly1305:legacy-password@legacy.example.net:443".toByteArray(),
+            android.util.Base64.NO_WRAP
+        )
+        val config = JSONObject(SingBoxConfigBuilder.build("ss://$payload"))
+        val outbound = config.getJSONArray("outbounds").getJSONObject(0)
+        assertEquals("legacy.example.net", outbound.getString("server"))
+        assertEquals("chacha20-ietf-poly1305", outbound.getString("method"))
+    }
+
+    @Test
     fun buildsTorSocksTunnel() {
         val config = JSONObject(SingBoxConfigBuilder.buildTorSocks())
         val outbound = config.getJSONArray("outbounds").getJSONObject(0)
