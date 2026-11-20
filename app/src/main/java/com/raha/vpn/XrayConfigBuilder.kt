@@ -208,6 +208,9 @@ object XrayConfigBuilder {
         val host = uri.host?.takeIf { it.isNotBlank() } ?: error("آدرس سرور در لینک وجود ندارد")
         val port = uri.port.takeIf { it in 1..65535 } ?: error("پورت سرور معتبر نیست")
         val query = query(uri.encodedQuery.orEmpty())
+        require(query["headerType"].isNullOrBlank() || query["headerType"].equals("none", ignoreCase = true)) {
+            "هدر TCP سفارشی هنوز پشتیبانی نمی‌شود"
+        }
         val credential = uri.userInfo?.let { Uri.decode(it) }?.takeIf { it.isNotBlank() }
             ?: error("شناسه یا رمز سرور وجود ندارد")
         val security = query["security"].orEmpty().ifBlank {
