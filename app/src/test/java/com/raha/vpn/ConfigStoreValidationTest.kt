@@ -40,7 +40,6 @@ class ConfigStoreValidationTest {
     }
 
     @Test
-    @Test
     fun rejectsKnownSchemesWithUnusableShareLinks() {
         assertFalse(ConfigStore.isSupported("vless://not-a-uuid@example.com:443"))
         assertFalse(ConfigStore.isSupported("vless://123e4567-e89b-12d3-a456-426614174000@example.com"))
@@ -49,6 +48,7 @@ class ConfigStoreValidationTest {
         assertFalse(ConfigStore.isSupported("hysteria2://password@example.com"))
     }
 
+    @Test
     fun rejectsUnknownAndMalformedSchemes() {
         assertFalse(ConfigStore.isSupported("ftp://example.com/file"))
         assertFalse(ConfigStore.isSupported("not-a-config"))
