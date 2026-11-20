@@ -37,6 +37,14 @@ class ConfigStoreValidationTest {
     }
 
     @Test
+    fun canonicalizesBridgeAndObfs4KeywordsForTor() {
+        val canonical = validObfs4
+        assertTrue(ConfigStore.normalizeObfs4Bridge(canonical) == canonical)
+        assertTrue(ConfigStore.normalizeObfs4Bridge("BRIDGE OBFS4 " + canonical.substringAfter("obfs4 ")) == canonical)
+        assertTrue(ConfigStore.normalizeObfs4Bridge("Bridge " + canonical.replaceFirst("obfs4", "ObFs4")) == canonical)
+    }
+
+    @Test
     fun rejectsObfs4InvalidPortsAndFingerprints() {
         val invalidPort = validObfs4.replace(":443 ", ":70000 ")
         val shortFingerprint = validObfs4.replace("a".repeat(40), "a".repeat(39))
