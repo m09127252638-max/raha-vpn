@@ -12,7 +12,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
+@Config(sdk = [34])
 class ShareLinkParserTest {
     private val uuid = "01234567-89ab-cdef-0123-456789abcdef"
 
@@ -36,7 +36,7 @@ class ShareLinkParserTest {
         assertTrue(torrc.contains("Bridge $bridge\n"))
         assertTrue(torrc.contains("SocksPort 0\n"))
         assertTrue(torrc.contains("SocksPort 127.0.0.1:19050\n"))
-        assertTrue(torrc.endsWith("SafeSocks 1\n"))
+        assertFalse(torrc.contains("SafeSocks 1"))
     }
 
     @Test

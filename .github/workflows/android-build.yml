@@ -12,13 +12,13 @@ permissions:
 
 concurrency:
   group: android-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout app
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -26,6 +26,22 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Set up Go for pinned libXray engine
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install pinned Android SDK components
+        run: sdkmanager "platforms;android-35" "ndk;28.0.13004108"
+
+      - name: Build combined Xray and obfs4 Go engine for arm64
+        run: bash scripts/build-libxray-android.sh
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4

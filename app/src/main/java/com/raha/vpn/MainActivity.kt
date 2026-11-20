@@ -1,10 +1,21 @@
 package com.raha.vpn
 
+import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,7 +44,10 @@ private val Panel = Color(0xFF10243B)
 private val Gold = Color(0xFFFFC857)
 private val Muted = Color(0xFF9BAFC5)
 
-data class Server(val name: String, val address: String, val protocol: String, val rawConfig: String)
+data class Server(val name: String, val address: String, val protocol: String, val rawConfig: String) {
+    val connectable: Boolean get() = protocol in setOf("vless", "trojan", "obfs4")
+}
+private data class PendingVpnRequest(val rawConfig: String, val bridge: String?, val protocol: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,17 +63,100 @@ fun RahaApp() {
     val savedServers = remember(configStore) { configStore.load().mapIndexed { index, raw -> serverFromConfig(raw, index) } }
     var selectedTab by remember { mutableStateOf(0) }
     var configText by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("برای شروع، یک کانفیگ به برنامه اضافه کن.") }
+    var message by remember { mutableStateOf("برای شروع، یک سرور انتخاب کن.") }
     var servers by remember { mutableStateOf(savedServers) }
     var selectedServer by remember { mutableStateOf(savedServers.firstOrNull()) }
     var dnsResults by remember { mutableStateOf<List<DnsResult>>(emptyList()) }
     var dnsChecking by remember { mutableStateOf(false) }
     var publicConfigs by remember { mutableStateOf<List<String>>(emptyList()) }
+    var publicConfigVisibleCount by remember { mutableStateOf(25) }
     var configSearching by remember { mutableStateOf(false) }
+    var vpnStatus by remember { mutableStateOf(RahaVpnService.STATUS_DISCONNECTED) }
+    var activeProtocol by remember { mutableStateOf("") }
+    var pendingVpnRequest by remember { mutableStateOf<PendingVpnRequest?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val torBridgeManager = remember(context) { TorBridgeManager(context.applicationContext) }
-    var torConnecting by remember { mutableStateOf(false) }
-    var torConnected by remember { mutableStateOf(false) }
+
+    fun startVpnService(request: PendingVpnRequest) {
+        val serviceIntent = Intent(context, RahaVpnService::class.java).apply {
+            action = RahaVpnService.ACTION_START
+            if (request.bridge != null) {
+                putExtra(RahaVpnService.EXTRA_BRIDGE, request.bridge)
+            } else {
+                putExtra(RahaVpnService.EXTRA_CONFIG, request.rawConfig)
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+        activeProtocol = request.protocol
+    }
+
+    val vpnPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val request = pendingVpnRequest
+        pendingVpnRequest = null
+        if (result.resultCode == Activity.RESULT_OK && request != null) {
+            startVpnService(request)
+        } else {
+            message = "برای ایجاد تونل VPN باید اجازه اتصال را تأیید کنی."
+        }
+    }
+
+    fun requestVpnConnection(request: PendingVpnRequest) {
+        pendingVpnRequest = request
+        val permissionIntent = VpnService.prepare(context)
+        if (permissionIntent != null) {
+            vpnPermissionLauncher.launch(permissionIntent)
+        } else {
+            pendingVpnRequest = null
+            startVpnService(request)
+        }
+    }
+
+    fun stopVpnConnection() {
+        context.startService(
+            Intent(context, RahaVpnService::class.java).setAction(RahaVpnService.ACTION_STOP)
+        )
+    }
+
+    val vpnReceiver = remember(context) {
+        object : BroadcastReceiver() {
+            override fun onReceive(receiverContext: android.content.Context?, intent: Intent?) {
+                if (intent?.action != RahaVpnService.ACTION_STATUS) return
+                vpnStatus = intent.getStringExtra(RahaVpnService.EXTRA_STATUS)
+                    ?: RahaVpnService.STATUS_DISCONNECTED
+                message = intent.getStringExtra(RahaVpnService.EXTRA_MESSAGE).orEmpty()
+                if (vpnStatus == RahaVpnService.STATUS_DISCONNECTED ||
+                    vpnStatus == RahaVpnService.STATUS_FAILED
+                ) {
+                    activeProtocol = ""
+                }
+            }
+        }
+    }
+
+    DisposableEffect(context, vpnReceiver) {
+        ContextCompat.registerReceiver(
+            context,
+            vpnReceiver,
+            IntentFilter(RahaVpnService.ACTION_STATUS),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose { runCatching { context.unregisterReceiver(vpnReceiver) } }
+    }
+
+    LaunchedEffect(Unit) {
+        val running = withContext(Dispatchers.IO) {
+            runCatching { XrayCoreManager().isRunning() }.getOrDefault(false)
+        }
+        if (running) {
+            vpnStatus = RahaVpnService.STATUS_CONNECTED
+            message = "تونل VPN فعال است."
+        }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(background = Navy, surface = Panel, primary = Gold, onPrimary = Navy, onBackground = Color.White, onSurface = Color.White)) {
         Surface(Modifier.fillMaxSize(), color = Navy) {
@@ -83,45 +180,71 @@ fun RahaApp() {
                             Icon(Icons.Default.Shield, null, tint = Gold, modifier = Modifier.size(54.dp))
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text(if (torConnected) "اتصال Tor برقرار است" else if (torConnecting) "در حال اتصال به پل obfs4..." else "آماده اتصال با پل obfs4", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text(if (torConnected) "پروکسی محلی Tor: socks5://127.0.0.1:19050" else "یک پل obfs4 را از فهرست سرورها انتخاب کن.", color = Muted, fontSize = 12.sp)
+                        val vpnConnected = vpnStatus == RahaVpnService.STATUS_CONNECTED
+                        val vpnConnecting = vpnStatus == RahaVpnService.STATUS_CONNECTING
+                        Text(
+                            when {
+                                vpnConnected && activeProtocol == "obfs4" -> "VPN متصل با پل obfs4"
+                                vpnConnected -> "VPN متصل"
+                                vpnConnecting -> "در حال اتصال VPN…"
+                                else -> "آماده اتصال VPN"
+                            },
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            selectedServer?.let { it.protocol.uppercase() + " • " + it.address }
+                                ?: "ابتدا یک سرور از فهرست انتخاب کن.",
+                            color = Muted,
+                            fontSize = 12.sp
+                        )
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = {
-                                if (torConnected) {
-                                    torConnecting = true
-                                    coroutineScope.launch {
-                                        withContext(Dispatchers.IO) { torBridgeManager.disconnect() }
-                                        torConnected = false
-                                        torConnecting = false
-                                        message = "اتصال Tor قطع شد."
-                                    }
+                                if (vpnConnected) {
+                                    stopVpnConnection()
                                 } else {
-                                    val bridge = selectedServer?.takeIf { it.protocol == "obfs4" }?.rawConfig
-                                    if (bridge == null) {
-                                        message = "ابتدا یک پل obfs4 را از فهرست سرورها انتخاب کن."
+                                    val server = selectedServer
+                                    if (server == null) {
+                                        message = "ابتدا یک سرور انتخاب کن."
+                                    } else if (!server.connectable) {
+                                        message = "این پروتکل هنوز در موتور اتصال پشتیبانی نمی‌شود؛ فعلاً VLESS، Trojan و obfs4 قابل انتخاب هستند."
+                                    } else if (server.protocol == "obfs4") {
+                                        requestVpnConnection(
+                                            PendingVpnRequest(rawConfig = "", bridge = server.rawConfig, protocol = "obfs4")
+                                        )
                                     } else {
-                                        torConnecting = true
-                                        coroutineScope.launch {
-                                            try {
-                                                val socks = withContext(Dispatchers.IO) { torBridgeManager.connect(bridge) }
-                                                torConnected = true
-                                                message = "اتصال به شبکه Tor برقرار شد؛ پروکسی محلی socks5://$socks"
-                                            } catch (error: Throwable) {
-                                                torConnected = false
-                                                message = "اتصال پل ناموفق بود: " + (error.message ?: "خطای ناشناخته")
-                                            } finally {
-                                                torConnecting = false
-                                            }
-                                        }
+                                        requestVpnConnection(
+                                            PendingVpnRequest(rawConfig = server.rawConfig, bridge = null, protocol = server.protocol)
+                                        )
                                     }
                                 }
                             },
-                            enabled = !torConnecting && (torConnected || selectedServer?.protocol == "obfs4"),
+                            enabled = !vpnConnecting && (vpnConnected || selectedServer?.connectable == true),
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             shape = RoundedCornerShape(14.dp)
-                        ) { Text(if (torConnecting) "در حال اتصال..." else if (torConnected) "قطع اتصال Tor" else "اتصال با obfs4") }
-                        Text("این نسخه پروکسی محلی Tor را راه‌اندازی می‌کند؛ هنوز تمام ترافیک گوشی از تونل VPN عبور نمی‌کند.", color = Muted, fontSize = 10.sp)
+                        ) {
+                            Text(
+                                when {
+                                    vpnConnecting -> "در حال اتصال…"
+                                    vpnConnected -> "قطع VPN"
+                                    else -> "اتصال VPN"
+                                }
+                            )
+                        }
+                        if (activeProtocol == "obfs4" && vpnConnected) {
+                            Text(
+                                "در حالت obfs4، ترافیک خود برنامه برای جلوگیری از حلقه از VPN مستثناست؛ سایر برنامه‌ها از تونل عبور می‌کنند.",
+                                color = Muted,
+                                fontSize = 10.sp
+                            )
+                        } else {
+                            Text(
+                                "اتصال از طریق تونل Android VPN و موتور Xray انجام می‌شود.",
+                                color = Muted,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -143,6 +266,7 @@ fun RahaApp() {
                                         Column(Modifier.weight(1f)) {
                                             Text(server.name, fontWeight = FontWeight.SemiBold)
                                             Text(server.protocol + " • " + server.address, color = Muted, fontSize = 12.sp)
+                                            if (!server.connectable) Text("فعلاً قابل اتصال نیست", color = Color(0xFFFF9B8F), fontSize = 11.sp)
                                         }
                                         if (selectedServer == server) Text("انتخاب‌شده", color = Gold, fontSize = 12.sp)
                                         IconButton(onClick = {
@@ -162,7 +286,7 @@ fun RahaApp() {
                         Text("افزودن کانفیگ", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text("لینک سرور یا خط کامل obfs4 را اینجا جای‌گذاری کن.", color = Muted, fontSize = 12.sp)
                         Spacer(Modifier.height(10.dp))
-                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("vless:// یا vmess:// یا trojan:// یا hysteria2:// یا obfs4 ...") }, minLines = 4)
+                        OutlinedTextField(value = configText, onValueChange = { configText = it }, modifier = Modifier.fillMaxWidth().height(130.dp), placeholder = { Text("برای اتصال: vless://، trojan:// یا obfs4 ...") }, minLines = 4)
                         Spacer(Modifier.height(10.dp))
                         Button(onClick = {
                             val entries = configText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
@@ -186,6 +310,7 @@ fun RahaApp() {
                         }
                     }
                     else -> {
+                        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                         Text("جستجوی سرورهای عمومی", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Spacer(Modifier.height(8.dp))
                         Text("بررسی DNSهای عمومی رمزگذاری‌شده (DoH)", color = Muted)
@@ -228,7 +353,7 @@ fun RahaApp() {
                         }
                         Spacer(Modifier.height(8.dp))
                         Text("این بررسی فقط دسترسی DNS را می‌سنجد و به‌تنهایی فیلترشکن نیست.", color = Muted, fontSize = 11.sp)
-                        Text("پل‌های obfs4 با موتور Tor و obfs4proxy داخلی قابل راه‌اندازی‌اند. پل‌های عمومی ممکن است از کار افتاده باشند؛ در صورت شکست، پل دیگری را امتحان کن.", color = Muted, fontSize = 11.sp)
+                        Text("پل obfs4 از طریق Tor و موتور انتقال داخلی اجرا می‌شود. اتصال فقط پس از آماده‌شدن مدار Tor آغاز می‌شود.", color = Muted, fontSize = 11.sp)
                         Spacer(Modifier.height(14.dp))
                         OutlinedButton(onClick = {
                             if (!configSearching) {
@@ -236,6 +361,7 @@ fun RahaApp() {
                                 coroutineScope.launch {
                                     val found = withContext(Dispatchers.IO) { PublicConfigSearch.fetch() }
                                     publicConfigs = found
+                                    publicConfigVisibleCount = 25
                                     configSearching = false
                                     message = if (found.isEmpty()) "کانفیگی دریافت نشد؛ بعداً دوباره تلاش کن." else found.size.toString() + " کانفیگ عمومی پیدا شد؛ فعال بودن آن‌ها تضمین‌شده نیست."
                                 }
@@ -243,7 +369,7 @@ fun RahaApp() {
                         }, enabled = !configSearching, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text(if (configSearching) "در حال جستجو..." else "جستجوی کانفیگ‌های عمومی")
                         }
-                        publicConfigs.take(25).forEach { raw ->
+                        publicConfigs.take(publicConfigVisibleCount).forEach { raw ->
                             Card(colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
@@ -252,18 +378,33 @@ fun RahaApp() {
                                     }
                                     TextButton(onClick = {
                                         runCatching { configStore.add(raw) }.onSuccess {
-                                            servers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
+                                            val refreshedServers = configStore.load().mapIndexed { i, item -> serverFromConfig(item, i) }
+                                            servers = refreshedServers
+                                            selectedServer = refreshedServers.firstOrNull { it.rawConfig == raw }
+                                                ?: selectedServer
+                                                ?: refreshedServers.firstOrNull()
                                             publicConfigs = publicConfigs.filterNot { it == raw }
-                                            message = "کانفیگ ذخیره شد؛ اتصال VPN هنوز تکمیل نشده است."
+                                            message = "کانفیگ ذخیره و انتخاب شد؛ حالا می‌توانی به VPN وصل شوی."
                                         }.onFailure { message = "ذخیره کانفیگ انجام نشد." }
                                     }) { Text("افزودن", color = Gold) }
                                 }
                             }
                         }
-                        if (publicConfigs.size > 25) Text("۲۵ مورد اول نمایش داده می‌شود؛ " + publicConfigs.size + " مورد دریافت شد.", color = Muted, fontSize = 11.sp)
+                        if (publicConfigs.size > publicConfigVisibleCount) {
+                            TextButton(
+                                onClick = { publicConfigVisibleCount = (publicConfigVisibleCount + 25).coerceAtMost(publicConfigs.size) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("نمایش ۲۵ مورد بعدی • ${publicConfigs.size - publicConfigVisibleCount} مورد باقی‌مانده", color = Gold) }
+                        }
+                        if (publicConfigs.isNotEmpty()) Text(
+                            "از ${publicConfigs.size} نتیجه یکتا دریافت شد؛ آنلاین بودن سرورها هنوز تست نشده است.",
+                            color = Muted,
+                            fontSize = 11.sp
+                        )
+                        }
                     }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(12.dp))
                 Text(message, color = Gold, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("امنیت مهم‌تر از اتصال است؛ کانفیگ‌های ناشناس را با احتیاط استفاده کن.", color = Muted, fontSize = 10.sp)
@@ -281,13 +422,14 @@ private fun RowScope.TabButton(label: String, active: Boolean, onClick: () -> Un
 
 
 private fun serverFromConfig(raw: String, index: Int): Server {
-    val isObfs4 = raw.startsWith("obfs4 ", ignoreCase = true)
-    val protocol = if (isObfs4) "obfs4" else raw.substringBefore("://", "").lowercase()
+    val normalized = raw.trim().replaceFirst(Regex("^Bridge\\s+", RegexOption.IGNORE_CASE), "")
+    val isObfs4 = normalized.startsWith("obfs4 ", ignoreCase = true)
+    val protocol = if (isObfs4) "obfs4" else normalized.substringBefore("://", "").lowercase()
     val endpoint = if (isObfs4) {
-        Regex("""^obfs4\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1)
+        Regex("""^obfs4\s+([^ ]+)""", RegexOption.IGNORE_CASE).find(normalized)?.groupValues?.get(1)
     } else {
-        Regex("@([^@:/?#]+):\\d+").find(raw)?.groupValues?.get(1)
-            ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(raw.substringAfter("://", ""))?.groupValues?.get(1)
+        Regex("@([^@:/?#]+):\\d+").find(normalized)?.groupValues?.get(1)
+            ?: Regex("^([a-zA-Z0-9.-]+):\\d+").find(normalized.substringAfter("://", ""))?.groupValues?.get(1)
     } ?: "آدرس مخفی"
     return Server("سرور " + (index + 1), endpoint, protocol, raw)
 }

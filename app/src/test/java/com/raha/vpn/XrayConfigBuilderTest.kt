@@ -1,9 +1,11 @@
 package com.raha.vpn
 
 import android.util.Base64
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,7 +13,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
+@Config(sdk = [34])
 class XrayConfigBuilderTest {
     private val uuid = "01234567-89ab-cdef-0123-456789abcdef"
 
@@ -71,6 +73,34 @@ class XrayConfigBuilderTest {
     }
 
     @Test
+    fun legacyVmessFallbackReturnsOnlyTheValidatedOutbound() {
+        val vmess = JSONObject()
+            .put("add", "legacy-vmess.example")
+            .put("port", "443")
+            .put("id", uuid)
+            .put("aid", "0")
+            .put("net", "tcp")
+            .put("tls", "tls")
+        val encoded = Base64.encodeToString(vmess.toString().toByteArray(), Base64.NO_WRAP)
+
+        val result = XrayCoreManager().legacyVmessFallback("vmess://$encoded")
+        assertTrue(result != null)
+        val outbounds = result!!.getJSONArray("outbounds")
+        assertEquals(1, outbounds.length())
+        assertEquals("vmess", outbounds.getJSONObject(0).getString("protocol"))
+        assertEquals("legacy-vmess.example", outbounds.getJSONObject(0)
+            .getJSONObject("settings").getJSONArray("vnext").getJSONObject(0).getString("address"))
+    }
+
+    @Test
+    fun legacyVmessFallbackRejectsMultipleOrInvalidEntries() {
+        assertNull(XrayCoreManager().legacyVmessFallback("vmess://not-base64-json"))
+        assertNull(XrayCoreManager().legacyVmessFallback(
+            "vmess://not-base64-json\nvless://$uuid@edge.example:443"
+        ))
+    }
+
+    @Test
     fun rejectsUnsupportedTransportAndInvalidPort() {
         try {
             XrayConfigBuilder.build("vless://$uuid@edge.example:443?type=kcp")
@@ -83,6 +113,18 @@ class XrayConfigBuilderTest {
             throw AssertionError("Invalid port should not be accepted")
         } catch (_: IllegalStateException) {
             // Expected.
+        }
+    }
+
+    @Test
+    fun rejectsUnsupportedCustomTcpHeader() {
+        try {
+            XrayConfigBuilder.build(
+                "vless://$uuid@edge.example:443?encryption=none&security=none&type=tcp&headerType=http"
+            )
+            throw AssertionError("Custom HTTP TCP header must not be silently ignored")
+        } catch (_: IllegalArgumentException) {
+            // Expected: the app must not label a silently altered link as usable.
         }
     }
 

@@ -1,86 +1,111 @@
 package com.raha.vpn
 
-import android.content.Context
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeout
-import java.io.File
-import java.net.InetSocketAddress
-import java.net.Socket
+import android.net.VpnService
+import libXray.DialerController
+import libXray.LibXray
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
- * Launches the Xray Android/arm64 executable packaged in libxray.so.
- * The process uses the app UID; RahaVpnService excludes that UID from its TUN
- * so Xray's upstream sockets cannot loop back into the VPN.
+ * Thin, secret-safe wrapper around the combined libXray/IPtProxy gomobile runtime.
+ * Xray sockets are protected from the Android TUN so they use the underlying network.
  */
-class XrayCoreManager(context: Context) {
-    private val appContext = context.applicationContext
-    private var process: Process? = null
-    private var configFile: File? = null
-    private var logFile: File? = null
+class XrayCoreManager {
+    @Volatile
+    private var vpnService: VpnService? = null
 
-    @Synchronized
-    suspend fun start(rawConfig: String, socksPort: Int = DEFAULT_SOCKS_PORT): Int {
-        stop()
-        val configJson = XrayConfigBuilder.build(rawConfig, socksPort)
-        val executable = File(appContext.applicationInfo.nativeLibraryDir, "libxray.so")
-        check(executable.isFile && executable.canExecute()) {
-            "موتور Xray در این نسخه نصب نشده است؛ فایل libxray.so موجود نیست."
+    private val dialerController = object : DialerController {
+        override fun protectFd(fd: Long): Boolean {
+            return vpnService?.protect(fd.toInt()) ?: false
         }
-        val config = File(appContext.noBackupFilesDir, "xray-client.json")
-        config.writeText(configJson)
-        val output = File(appContext.noBackupFilesDir, "xray-runtime.log")
-        configFile = config
-        logFile = output
-        val child = ProcessBuilder(
-            executable.absolutePath,
-            "run",
-            "-c",
-            config.absolutePath
-        ).redirectErrorStream(true).redirectOutput(output).start()
-        process = child
-        try {
-            withTimeout(12_000L) {
-                while (true) {
-                    if (!child.isAlive) {
-                        error("موتور Xray پیش از آماده‌شدن متوقف شد؛ گزارش محلی ثبت شد.")
-                    }
-                    if (canConnect("127.0.0.1", socksPort)) break
-                    delay(150)
-                }
-            }
-        } catch (error: Throwable) {
-            stop()
-            throw error
-        }
-        return socksPort
     }
 
-    @Synchronized
+    fun attach(service: VpnService) {
+        vpnService = service
+        LibXray.registerDialerController(dialerController)
+    }
+
+    fun detach() {
+        vpnService = null
+    }
+
+    fun convertShareLinksToXrayJson(text: String): JSONObject {
+        val normalized = normalizeShareText(text)
+        return try {
+            val response = invoke(
+                "convertShareLinksToXrayJson",
+                JSONObject().put("text", normalized)
+            )
+            response.optJSONObject("data")
+                ?: throw IllegalStateException("موتور Xray کانفیگ قابل‌استفاده‌ای پیدا نکرد.")
+        } catch (error: Exception) {
+            // The current libXray share parser accepts VMessAEAD URIs but not
+            // legacy VMessQrCode (vmess://Base64(JSON)). Preserve compatibility
+            // for a single legacy VMess node without weakening other parsing.
+            legacyVmessFallback(normalized) ?: throw error
+        }
+    }
+
+    internal fun legacyVmessFallback(text: String): JSONObject? {
+        val entries = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+        if (entries.size != 1 || !entries.single().startsWith("vmess://", ignoreCase = true)) {
+            return null
+        }
+        return runCatching {
+            val parsed = JSONObject(XrayConfigBuilder.build(entries.single()))
+            val outbound = parsed.getJSONArray("outbounds").getJSONObject(0)
+            JSONObject().put("outbounds", JSONArray().put(JSONObject(outbound.toString())))
+        }.getOrNull()
+    }
+
+    fun test(configJson: String) {
+        invoke("testXray", JSONObject().put("xrayJson", configJson))
+    }
+
+    fun start(configJson: String) {
+        invoke("runXray", JSONObject().put("xrayJson", configJson))
+        check(isRunning()) { "موتور Xray پس از راه‌اندازی فعال نماند." }
+    }
+
     fun stop() {
-        process?.let { child ->
-            runCatching { child.destroy() }
-            runCatching {
-                if (!child.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
-                    child.destroyForcibly()
-                    child.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)
-                }
-            }
-        }
-        process = null
-        configFile?.delete()
-        configFile = null
-        // Keep only the latest private diagnostic log; it may contain endpoint metadata.
+        invoke("stopXray")
     }
 
-    private fun canConnect(host: String, port: Int): Boolean =
-        runCatching {
-            Socket().use { socket ->
-                socket.connect(InetSocketAddress(host, port), 250)
-            }
-            true
-        }.getOrDefault(false)
+    fun isRunning(): Boolean =
+        invoke("getXrayState").optJSONObject("data")?.optBoolean("running", false) ?: false
 
-    companion object {
-        const val DEFAULT_SOCKS_PORT = 10808
+    private fun invoke(method: String, payload: JSONObject? = null): JSONObject {
+        val request = JSONObject()
+            .put("apiVersion", API_VERSION)
+            .put("method", method)
+        if (payload != null) request.put("payload", payload)
+
+        val response = JSONObject(LibXray.invoke(request.toString()))
+        if (!response.optBoolean("success", false)) {
+            val safeMessage = when (method) {
+                "convertShareLinksToXrayJson" -> "لینک سرور ناقص یا توسط موتور پشتیبانی نمی‌شود."
+                "testXray" -> "ساختار کانفیگ برای موتور Xray معتبر نیست."
+                "runXray" -> "موتور Xray نتوانست تونل را راه‌اندازی کند."
+                "stopXray" -> "موتور Xray نتوانست به‌درستی متوقف شود."
+                else -> "خطای داخلی موتور Xray."
+            }
+            throw IllegalStateException(safeMessage)
+        }
+        return response
+    }
+
+    private fun normalizeShareText(text: String): String =
+        text.lineSequence().joinToString("\n") { line ->
+            when {
+                line.startsWith("socks5://", ignoreCase = true) ->
+                    "socks://" + line.substringAfter("://")
+                line.startsWith("socks5h://", ignoreCase = true) ->
+                    "socks://" + line.substringAfter("://")
+                else -> line
+            }
+        }
+
+    private companion object {
+        const val API_VERSION = 3
     }
 }
