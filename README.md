@@ -1,46 +1,30 @@
-# H.MAGHSODI
+# Lantern Custom
 
-اپلیکیشن اندروید H.MAGHSODI با رابط کاربری فارسی و تم تیره.
+A clean Android-focused customization project based on the official, open-source [Lantern](https://github.com/getlantern/lantern) codebase.
 
-## قابلیت‌های پیاده‌سازی‌شده
-- پوسته Android با Jetpack Compose، رابط فارسی و تم سرمه‌ای/طلایی
-- فهرست سرورها و افزودن لینک کانفیگ
-- ذخیره‌سازی لینک‌های کانفیگ با رمزگذاری AES-GCM و کلید Android Keystore
-- بررسی دسترسی DNS-over-HTTPS از طریق Cloudflare و Google
-- آزمایش HTTPS متصل‌شده به شبکهٔ VPN اندروید برای تأیید عبور واقعی درخواست برنامه از تونل؛ این تست به‌تنهایی مسیر تمام برنامه‌ها را اثبات نمی‌کند
-- دریافت فهرست لینک‌های عمومی V2Ray و پل‌های obfs4 از منابع ثالث
-- اعتبارسنجی پل obfs4 و راه‌اندازی Tor Android با IPtProxy؛ وضعیت آماده فقط پس از موفقیت SOCKS5 CONNECT از مسیر مدار Tor اعلام می‌شود
-- تبدیل لینک‌های VLESS، VMess، Trojan، Shadowsocks، Hysteria2 و TUIC به پیکربندی sing-box
-- واردسازی فایل استاندارد WireGuard با بخش‌های Interface و Peer و تبدیل آن به WireGuard endpoint در sing-box
-- سرویس Android VpnService، ساخت TUN و رابط پلتفرم sing-box
-- رابط شبکه اندروید برای محافظت سوکت‌ها در برابر loop و پایش رابط شبکه پیش‌فرض
-- مسیر اتصال Tor/obfs4 از SOCKS محلی به تونل سراسری sing-box
+> **Project status:** Initial repository reset and project foundation. The upstream source has been inspected, but has **not yet been imported or built in this branch**. No APK is available yet.
 
-## وضعیت ساخت و آزمایش
-هستهٔ ترکیبی sing-box نسخه 1.14.4 و IPtProxy نسخه 5.8.1، تست‌های واحد و ساخت APK در GitHub Actions با موفقیت اجرا شده‌اند. این تأیید فقط مربوط به ساخت است و جایگزین آزمایش روی دستگاه واقعی نیست.
+## Direction
 
-**هنوز APK نهایی و اتصال واقعی روی دستگاه اندرویدی تأیید نشده‌اند.** موفقیت ساخت AAR به معنی اثبات کارکرد VPN نیست. پس از عبور CI، آزمایش مجوز VPN، راه‌اندازی/قطع تونل، DNS، IPv4/IPv6، تغییر شبکه و اتصال واقعی هر پروتکل لازم است.
+- Start from the official Lantern architecture rather than the previous Raha VPN implementation.
+- Keep upstream copyright notices and the GNU GPL-3.0 license requirements.
+- Make user-facing, documented customizations without bypassing paid subscriptions, licensing checks, or access controls.
+- Keep networking changes testable and diagnosable; never ship hard-coded private endpoints or credentials.
+- Target Android first. The upstream repository currently uses Flutter for its application UI and Go for core networking components.
 
-## پشتیبانی فعلی پروتکل‌ها
-- VLESS: TCP، WebSocket و gRPC؛ TLS و Reality
-- VMess: TCP، WebSocket و gRPC؛ TLS
-- Trojan: TCP، WebSocket و gRPC؛ TLS
-- Shadowsocks: لینک‌های SIP002 و قالب قدیمی، بدون پلاگین جانبی
-- Hysteria2: لینک‌های hysteria2:// و hy2://، TLS و obfs salamander
-- TUIC: لینک tuic://، TLS، کنترل ازدحام و حالت UDP relay
-- Tor/obfs4: راه‌اندازی پل و عبور ترافیک از SOCKS محلی به تونل sing-box؛ نیازمند تست عملی
-- WireGuard: واردسازی فایل متنی استاندارد `.conf` با یک Interface و یک یا چند Peer؛ لینک‌های اشتراکی WireGuard با قالب‌های اختصاصی هنوز پشتیبانی نمی‌شوند.
+## Upstream
 
-کانفیگ‌های عمومی ممکن است از کار افتاده یا ناامن باشند؛ آنلاین بودن یا قابل‌اتصال بودن آن‌ها تضمین نمی‌شود. بررسی DNS فقط دسترسی DNS را آزمایش می‌کند و جایگزین VPN نیست.
+- Repository: https://github.com/getlantern/lantern
+- Branch inspected: `main`
+- Upstream license: GNU General Public License v3.0 (see [LICENSE](LICENSE))
 
-## ساخت پروژه
-برای ساخت محلی، OpenJDK 17، Go نسخه 1.27.4، Android SDK و NDK نسخه 29.0.14206865 لازم است. از ریشهٔ مخزن اجرا کنید:
+## Next engineering steps
 
-```bash
-bash scripts/build-android-runtime.sh
-```
+1. Import and pin a specific upstream commit, preserving all upstream notices and required source files.
+2. Reproduce the official Android build in CI before making changes.
+3. Establish a baseline build/test report.
+4. Apply one small customization at a time, with tests and a changelog entry.
 
-این اسکریپت نسخه‌های ثابت‌شدهٔ sing-box و IPtProxy را دریافت و AAR مشترک app/libs/combined-go.aar را می‌سازد. سپس پروژه را با Android Studio و Android Gradle Plugin 8.7.3 باز و Gradle Sync کنید. GitHub Actions همین مرحله را پیش از تست و ساخت APK اجرا می‌کند. AAR تولیدی به‌دلیل حجم و امکان بازتولید، در مخزن نگهداری نمی‌شود.
+## Build status
 
-## مجوز موتور
-موتور sing-box تحت مجوز GPL-3.0-or-later منتشر می‌شود. در صورت توزیع برنامه همراه این موتور، رعایت شرایط GPL و انتشار کد منبع متناظر و اعلان‌های مجوز ضروری است.
+Not buildable yet: this branch currently contains project documentation only. The upstream source import and Android build verification are the next steps.
