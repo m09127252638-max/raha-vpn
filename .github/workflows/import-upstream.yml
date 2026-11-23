@@ -1,0 +1,43 @@
+name: Import official Lantern source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this project branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Check out pinned official Lantern source
+        uses: actions/checkout@v4
+        with:
+          repository: getlantern/lantern
+          ref: d9b971b4c79e933fafccf1883e78c9335f51f17e
+          path: upstream
+
+      - name: Replace the project tree with upstream source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='CUSTOMIZATION.md' \
+            --exclude='.github/workflows/import-upstream.yml' \
+            upstream/ ./
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No source changes to import."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Import official Lantern source at d9b971b4c79e933fafccf1883e78c9335f51f17e"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
